@@ -15,8 +15,6 @@ const streamRoutes = require("./routes/classStreamRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const { errorHandler } = require("./middleware/errorHandler");
 
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
 
 // ... imports
 const fs = require("fs");
@@ -27,59 +25,6 @@ const app = express();
 console.log(
   "Configuring Security Headers with updated CSP for Google Fonts...",
 );
-// TIGHTENING: Security Headers with customized CSP
-const isProd = process.env.NODE_ENV === "production";
-const defaultConnectSrc = isProd
-  ? [
-      "'self'",
-      "http://localhost:5000",
-      "http://127.0.0.1:5000",
-      "https://localhost:5443",
-      "https://127.0.0.1:5443",
-      "http://192.168.*:*",
-      "https://192.168.*:*",
-      "https://cdn.jsdelivr.net",
-      "https://fonts.googleapis.com",
-      "https://fonts.gstatic.com",
-    ]
-  : ["'self'", "http:", "https:", "data:", "blob:"];
-
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-        styleSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "https://cdn.jsdelivr.net",
-          "https://fonts.googleapis.com",
-        ],
-        imgSrc: ["'self'", "data:", "blob:"],
-        connectSrc: defaultConnectSrc,
-        fontSrc: [
-          "'self'",
-          "https://fonts.gstatic.com",
-          "https://fonts.googleapis.com",
-        ],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
-        frameSrc: ["'self'"],
-      },
-    },
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-  }),
-);
-
-// Rate limiting - increased for development
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per windowMs (increased for dev)
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
 
 // Middleware
 // TIGHTENING: CORS Configuration
