@@ -1,0 +1,8 @@
+{
+  "appId": "com.nsomadiglibs.app",
+  "appName": "Nsoma-DigLibs",
+  "webDir": "client/public",
+  "server": {
+    "androidScheme": "https"
+  }
+}

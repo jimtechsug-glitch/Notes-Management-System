@@ -2,17 +2,47 @@
   "name": "Nsoma-DigLibs",
   "version": "1.0.0",
   "description": "Notes management system for Ugandan schools following UNEB curriculum",
-  "main": "server/server.js",
+  "main": "main.js",
   "scripts": {
     "start": "node server/server.js",
-    "stop": "pm2 stop ecosystem.config.js",
     "dev": "nodemon server/server.js",
-    "setup": "bash setup.sh",
-    "seed": "node server/utils/seedDatabase.js",
     "format": "prettier --write \"**/*.{js,json,md,html,css}\"",
     "format:check": "prettier --check \"**/*.{js,json,md,html,css}\"",
-    "monitor": "pm2 monit",
-    "test": "echo 'No tests yet' && exit 0"
+    "test": "echo 'No tests yet' && exit 0",
+    "electron:start": "electron .",
+    "electron:build": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.nsomadiglibs.app",
+    "productName": "Nsoma-DigLibs",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "server/**/*",
+      "client/public/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "database.sqlite",
+        "to": "database.sqlite",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "client/public/assets/img/logo.png"
+    },
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false
   },
   "keywords": [
     "education",
@@ -25,23 +55,24 @@
   "author": "Agaba Derrick",
   "license": "MIT",
   "dependencies": {
+    "@capacitor/android": "^5.7.8",
+    "@capacitor/core": "^5.7.8",
     "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "cors": "^2.8.6",
     "express": "^4.18.2",
-    "express-rate-limit": "^8.2.1",
     "format": "^0.2.2",
-    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
-    "pg": "^8.11.3",
-    "pg-hstore": "^2.3.4",
-    "pm2": "^6.0.14",
     "sequelize": "^6.35.2",
+    "sqlite3": "^5.1.7",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "^5.7.8",
     "@eslint/js": "^10.0.1",
+    "concurrently": "^9.2.1",
+    "electron": "^40.7.0",
+    "electron-builder": "^26.8.1",
     "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
@@ -49,6 +80,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
     "nodemon": "^3.0.2",
-    "prettier": "^3.8.1"
+    "prettier": "^3.8.1",
+    "wait-on": "^9.0.4"
   }
 }
