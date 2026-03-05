@@ -5,7 +5,21 @@
 // ============================================
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // Auto-redirection to dashboard removed as requested.
-  // Users will always land on the home page with login options.
-  console.log("Nsoma DigLibs Landing Page Loaded");
+  // If auth utilities are available, we can redirect logged-in users
+  if (typeof getCurrentUser === "function") {
+    try {
+      const user = await getCurrentUser();
+      if (user && user.role === "admin") {
+        window.location.href = "/pages/admin-dashboard.html";
+        return;
+      }
+      if (user && user.role === "student") {
+        window.location.href = "/pages/student-dashboard.html";
+        return;
+      }
+    } catch (e) {
+      // Ignore and stay on home page
+      console.warn("Auto-redirect check failed:", e);
+    }
+  }
 });

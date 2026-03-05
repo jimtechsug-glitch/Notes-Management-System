@@ -1,12 +1,15 @@
-const CACHE_NAME = "nsoma-v13";
+const CACHE_NAME = "nsoma-v14";
 const ASSETS_TO_CACHE = [
   "/",
   "/index.html",
+  "/offline.html",
   "/assets/css/styles.css",
   "/assets/css/responsive.css",
   "/assets/js/main.js",
   "/assets/js/auth.js",
   "/assets/images/logo.png",
+  "/assets/images/icon-192.png",
+  "/assets/images/icon-512.png",
   "/assets/images/nsoma.png",
   "/manifest.json",
 ];
@@ -54,20 +57,25 @@ self.addEventListener("fetch", (event) => {
         );
       }),
     );
+  } else if (event.request.mode === "navigate") {
+    // For HTML page navigation requests: Network first, fallback to offline.html
+    event.respondWith(
+      fetch(event.request).catch(() => {
+        return caches.match("/offline.html");
+      }),
+    );
   } else {
     // Cache First for other assets
     event.respondWith(
       caches.match(event.request).then((response) => {
         if (response) return response;
         return fetch(event.request).catch((err) => {
-          // network failed (maybe offline); return root page or nothing
           console.warn(
             "Service worker fetch failed for",
             event.request.url,
             err,
           );
-          // try to serve a generic fallback if available
-          return caches.match("/");
+          return null;
         });
       }),
     );

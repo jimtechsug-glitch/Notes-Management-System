@@ -183,23 +183,7 @@
     <script src="/assets/js/auth.js"></script>
     <script src="/assets/js/main.js"></script>
 
-    <!-- PWA Service Worker Registration -->
-    <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("/service-worker.js")
-            .then((registration) => {
-              console.log(
-                "ServiceWorker registration successful with scope: ",
-                registration.scope,
-              );
-            })
-            .catch((err) => {
-              console.log("ServiceWorker registration failed: ", err);
-            });
-        });
-      }
-    </script>
+    <!-- PWA Install UI & Service Worker -->
+    <script src="/assets/js/pwa-install.js"></script>
   </body>
 </html>

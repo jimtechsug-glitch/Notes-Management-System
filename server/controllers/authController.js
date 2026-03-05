@@ -1,6 +1,5 @@
 const User = require("../models/User");
 const { ErrorResponse } = require("../middleware/errorHandler");
-const { validateLoginSecurity } = require("../utils/securityUtils");
 
 exports.register = async (req, res, next) => {
   try {
@@ -11,27 +10,11 @@ exports.register = async (req, res, next) => {
       role,
       class: classLevel,
       level,
-      classStream, // O-Level: e.g. "S1 A"
-      stream, // A-Level: "arts" or "science"
-      selectedSubjects, // A-Level: array of 3-letter codes
+      combination,
     } = req.body;
 
-    // Force role to be student for public registration
-    // Admin accounts should be created via seed script or manually in DB
-    const userRole = "student";
-    const isConfirmed = false; // Always false for new public registrations
-
-    // Auto-generate combination from selectedSubjects for A-Level
-    let combination = null;
-    if (
-      level === "a-level" &&
-      Array.isArray(selectedSubjects) &&
-      selectedSubjects.length > 0
-    ) {
-      combination = selectedSubjects
-        .map((c) => c.toUpperCase().trim())
-        .join("-");
-    }
+    const userRole = role || "student";
+    const isConfirmed = userRole === "admin";
 
     const user = await User.create({
       name,
@@ -40,10 +23,7 @@ exports.register = async (req, res, next) => {
       role: userRole,
       class: classLevel,
       level,
-      classStream: level === "o-level" ? classStream || null : null,
-      stream: level === "a-level" ? stream || null : null,
       combination,
-      selectedSubjects: level === "a-level" ? selectedSubjects || null : null,
       isConfirmed,
     });
 
@@ -56,16 +36,13 @@ exports.register = async (req, res, next) => {
       message,
       data: {
         user: {
-          id: user.id,
+          id: user._id,
           name: user.name,
           email: user.email,
           role: user.role,
           class: user.class,
           level: user.level,
-          classStream: user.classStream,
-          stream: user.stream,
           combination: user.combination,
-          selectedSubjects: user.selectedSubjects,
           isConfirmed: user.isConfirmed,
         },
       },
@@ -83,14 +60,9 @@ exports.register = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password } = req.body;
 
-    // Find user first
-    const user = await User.findOne({ where: { email } });
-
-    // Use independent security function for tightening login
-    // Pass 'role' to ensure students can't login on admin page and vice versa
-    await validateLoginSecurity(user, password, role);
+    const user = await User.findByCredentials(email, password);
 
     const token = user.generateAuthToken();
 
@@ -103,7 +75,7 @@ exports.login = async (req, res, next) => {
       },
     });
   } catch (error) {
-    return res.status(error.statusCode || 401).json({
+    return res.status(401).json({
       success: false,
       message: error.message || "Invalid credentials",
     });
@@ -139,7 +111,7 @@ exports.updatePassword = async (req, res, next) => {
       );
     }
 
-    const user = await User.findByPk(req.user.id);
+    const user = await User.findById(req.user.id).select("+password");
 
     const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {

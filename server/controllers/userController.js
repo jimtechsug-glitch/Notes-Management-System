@@ -298,7 +298,7 @@ exports.approveUser = async (req, res, next) => {
 
 exports.rejectUser = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.params.id);
+    const user = await User.findById(req.params.id);
 
     if (!user) {
       return next(new ErrorResponse("User not found", 404));

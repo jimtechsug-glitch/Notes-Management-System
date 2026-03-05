@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#4a90e2" />
+    <title>Offline — Nsoma DigLibs</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .card {
+        background: white;
+        border-radius: 20px;
+        padding: 50px 40px;
+        max-width: 480px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+        animation: fadeIn 0.4s ease;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .icon {
+        font-size: 72px;
+        margin-bottom: 20px;
+        display: block;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+
+        50% {
+          transform: scale(1.05);
+        }
+      }
+
+      h1 {
+        color: #333;
+        font-size: 28px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        color: #666;
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 30px;
+      }
+
+      .tips {
+        background: #f0f4ff;
+        border-radius: 12px;
+        padding: 20px;
+        text-align: left;
+        margin-bottom: 30px;
+      }
+
+      .tips h3 {
+        color: #4a90e2;
+        margin-bottom: 10px;
+        font-size: 15px;
+      }
+
+      .tips ul {
+        margin-left: 20px;
+        color: #555;
+        font-size: 14px;
+      }
+
+      .tips li {
+        margin: 6px 0;
+      }
+
+      .btn {
+        display: inline-block;
+        padding: 14px 32px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-decoration: none;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+      }
+
+      .brand {
+        color: #aaa;
+        font-size: 13px;
+        margin-top: 24px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="card">
+      <span class="icon">📶</span>
+      <h1>You're Offline</h1>
+      <p>
+        Nsoma DigLibs couldn't connect to the server. Make sure your device is
+        connected to the school Wi-Fi or LAN.
+      </p>
+      <div class="tips">
+        <h3>📋 Quick Checklist</h3>
+        <ul>
+          <li>Are you connected to the school Wi-Fi?</li>
+          <li>Is the school server powered on?</li>
+          <li>Ask your teacher or ICT admin for help</li>
+        </ul>
+      </div>
+      <button class="btn" onclick="window.location.reload()">
+        🔄 Try Again
+      </button>
+      <p class="brand">Nsoma DigLibs — Digital Library</p>
+    </div>
+  </body>
+</html>

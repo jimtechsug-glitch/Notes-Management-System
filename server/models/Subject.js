@@ -37,21 +37,10 @@ const Subject = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: true,
     },
-    // A-Level stream this subject belongs to (arts, science)
+    // A-Level stream this subject belongs to (arts, science or both)
     stream: {
-      type: DataTypes.ENUM("arts", "science"),
+      type: DataTypes.ENUM("arts", "science", "both"),
       allowNull: true,
-      validate: {
-        validForLevel(value) {
-          // when saving, `this.level` contains the level being set
-          if (this.level === "a-level" && !value) {
-            throw new Error("A-Level subject must specify a stream");
-          }
-          if (this.level === "o-level" && value) {
-            throw new Error("O-Level subjects should not have a stream");
-          }
-        },
-      },
     },
     isActive: {
       type: DataTypes.BOOLEAN,
@@ -61,40 +50,10 @@ const Subject = sequelize.define(
   {
     tableName: "subjects",
     timestamps: true,
-    hooks: {
-      beforeCreate: (subject) => {
-        if (subject.name) {
-          subject.name =
-            subject.name.charAt(0).toUpperCase() +
-            subject.name.slice(1).toLowerCase();
-        }
-        if (subject.code && subject.code.trim() !== "") {
-          subject.code = subject.code.toUpperCase().trim();
-        } else {
-          subject.code = null;
-        }
-      },
-      beforeUpdate: (subject) => {
-        if (subject.name) {
-          subject.name =
-            subject.name.charAt(0).toUpperCase() +
-            subject.name.slice(1).toLowerCase();
-        }
-        if (subject.code && subject.code.trim() !== "") {
-          subject.code = subject.code.toUpperCase().trim();
-        } else {
-          subject.code = null;
-        }
-      },
-    },
     indexes: [
       {
         unique: true,
         fields: ["name", "level", "class"],
-      },
-      {
-        unique: true,
-        fields: ["code", "level", "class"],
       },
     ],
   },

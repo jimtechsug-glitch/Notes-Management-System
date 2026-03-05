@@ -19,9 +19,6 @@ exports.getAllNotes = async (req, res, next) => {
       level,
       class: classLevel,
       subject,
-      combination,
-      classStream,
-      stream,
       search,
       limit = 20,
       page = 1,
@@ -33,37 +30,13 @@ exports.getAllNotes = async (req, res, next) => {
     if (level) where.level = level;
     if (classLevel) where.class = classLevel;
     if (subject) where.subject = subject;
-    if (stream) where.stream = stream;
 
-    const andConditions = [];
-
-    // O-Level classStream filter:
-    // Show notes with no classStream (for all) OR matching classStream
-    if (classStream) {
-      andConditions.push({
-        [Op.or]: [{ classStream: null }, { classStream }],
-      });
-    }
-
-    // A-Level combination filter:
-    // Show notes with no combination (for all) OR matching combination
-    if (combination) {
-      andConditions.push({
-        [Op.or]: [{ combination: null }, { combination }],
-      });
-    }
-
-    // Text search
+    // Text search (basic title/description search)
     if (search) {
-      andConditions.push({
-        [Op.or]: [
-          { title: { [Op.iLike]: `%${search}%` } },
-          { description: { [Op.iLike]: `%${search}%` } },
-        ],
-      });
-    }
-    if (andConditions.length) {
-      where[Op.and] = andConditions;
+      where[Op.or] = [
+        { title: { [Op.iLike]: `%${search}%` } },
+        { description: { [Op.iLike]: `%${search}%` } },
+      ];
     }
 
     const limitNum = parseInt(limit);
@@ -132,31 +105,11 @@ exports.createNote = async (req, res, next) => {
       class: classLevel,
       level,
       combination,
-      classStream,
-      stream,
     } = req.body;
 
     // Check if file was uploaded
     if (!req.file) {
       return next(new ErrorResponse("Please upload a file", 400));
-    }
-
-    // ensure the referenced subject actually exists and matches level/class
-    const Subject = require("../models/Subject");
-    if (subject) {
-      const subj = await Subject.findOne({
-        where: { name: subject, level, class: classLevel },
-      });
-      if (!subj) {
-        return next(
-          new ErrorResponse(
-            "Subject must be one of the existing subjects registered by admin",
-            400,
-          ),
-        );
-      }
-    } else {
-      return next(new ErrorResponse("Please provide a subject", 400));
     }
 
     // Create note
@@ -166,9 +119,7 @@ exports.createNote = async (req, res, next) => {
       subject,
       class: classLevel,
       level,
-      combination: combination || null,
-      classStream: classStream || null,
-      stream: stream || null,
+      combination,
       fileName: req.file.filename,
       originalFileName: req.file.originalname,
       filePath: req.file.path,
@@ -209,29 +160,7 @@ exports.updateNote = async (req, res, next) => {
       class: classLevel,
       level,
       combination,
-      classStream,
-      stream,
     } = req.body;
-
-    // if subject is being changed, verify it exists
-    if (subject) {
-      const Subject = require("../models/Subject");
-      const subj = await Subject.findOne({
-        where: {
-          name: subject,
-          level: level || note.level,
-          class: classLevel || note.class,
-        },
-      });
-      if (!subj) {
-        return next(
-          new ErrorResponse(
-            "Subject must be one of the existing subjects registered by admin",
-            400,
-          ),
-        );
-      }
-    }
 
     // Update fields
     if (title) note.title = title;
@@ -239,9 +168,7 @@ exports.updateNote = async (req, res, next) => {
     if (subject) note.subject = subject;
     if (classLevel) note.class = classLevel;
     if (level) note.level = level;
-    if (combination !== undefined) note.combination = combination;
-    if (classStream !== undefined) note.classStream = classStream;
-    if (stream !== undefined) note.stream = stream;
+    if (combination) note.combination = combination;
 
     // If new file uploaded, delete old one
     if (req.file) {
@@ -314,29 +241,6 @@ exports.downloadNote = async (req, res, next) => {
 
     // Send file
     res.download(note.filePath, note.originalFileName);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// @desc    View note (inline - for reading in browser)
-// @route   GET /api/notes/:id/view
-// @access  Private
-exports.viewNote = async (req, res, next) => {
-  try {
-    const note = await Note.findByPk(req.params.id);
-
-    if (!note) {
-      return next(new ErrorResponse("Note not found", 404));
-    }
-
-    await note.incrementViews();
-
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${note.originalFileName}"`,
-    );
-    res.sendFile(path.resolve(process.cwd(), note.filePath));
   } catch (error) {
     next(error);
   }

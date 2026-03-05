@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:15-alpine
+    network_mode: host
     environment:
       POSTGRES_DB: ${DB_NAME:-notes_management}
       POSTGRES_USER: ${DB_USER:-notes_admin}
@@ -15,11 +16,10 @@ services:
 
   app:
     build: .
-    ports:
-      - "5000:5000"
+    network_mode: host
     environment:
-      # database and app settings
-      - DB_HOST=db
+      # database and app settings — use 127.0.0.1 since both containers share the host network
+      - DB_HOST=127.0.0.1
       - DB_PORT=5432
       - DB_NAME=${DB_NAME:-notes_management}
       - DB_USER=${DB_USER:-notes_admin}
@@ -28,18 +28,16 @@ services:
       - JWT_EXPIRE=${JWT_EXPIRE:-7d}
       - PORT=5000
 
-      # Optional SSL settings (set paths to files inside the container)
-      - SSL_KEY_PATH=/app/certs/localhost-key.pem
-      - SSL_CERT_PATH=/app/certs/localhost.pem
-      - SSL_PORT=5443
-      - REDIRECT_HTTP_TO_HTTPS=false
+      # SSL settings (paths to files inside the container)
+      - SSL_KEY_PATH=${SSL_KEY_PATH:-/app/certs/192.168.1.2+4-key.pem}
+      - SSL_CERT_PATH=${SSL_CERT_PATH:-/app/certs/192.168.1.2+4.pem}
+      - SSL_PORT=${SSL_PORT:-5443}
+      - REDIRECT_HTTP_TO_HTTPS=${REDIRECT_HTTP_TO_HTTPS:-false}
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./uploads:/app/uploads
-      # Optional: mount a host folder containing SSL certs (read-only)
-      # create a ./certs directory and place your key/cert there when using HTTPS
       - ./certs:/app/certs:ro
 
 volumes:

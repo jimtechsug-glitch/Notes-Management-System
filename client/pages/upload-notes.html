@@ -7,12 +7,11 @@
     <link rel="stylesheet" href="/assets/css/styles.css" />
     <link rel="stylesheet" href="/assets/css/admin.css" />
   </head>
-
   <body>
     <div id="uploadApp" class="admin-upload-page">
       <header class="admin-nav">
         <div class="nav-container">
-          <h1 class="nav-logo">Admin - Upload Notes</h1>
+          <h1 class="nav-logo">📚 Admin - Upload Notes</h1>
           <div class="nav-user">
             <span id="adminName">Admin</span>
             <button class="btn-logout" id="logoutBtn">Logout</button>
@@ -51,9 +50,7 @@
             <div class="form-row">
               <div class="form-group">
                 <label for="subject">Subject *</label>
-                <select id="subject" name="subject" required>
-                  <option value="">Select Class First</option>
-                </select>
+                <input type="text" id="subject" name="subject" required />
               </div>
 
               <div class="form-group">
@@ -73,18 +70,14 @@
               </div>
             </div>
 
-            <div class="form-group" id="streamDiv" style="display: none">
-              <label for="stream">Stream (O-Level)</label>
-              <select id="stream" name="stream">
-                <option value="">Loading streams...</option>
-              </select>
-            </div>
-
-            <div class="form-group" id="combinationDiv" style="display: none">
-              <label for="combination">Combination</label>
-              <select id="combination" name="combination">
-                <option value="">Select Stream First</option>
-              </select>
+            <div class="form-group">
+              <label for="combination">Combination (A-Level only)</label>
+              <input
+                type="text"
+                id="combination"
+                name="combination"
+                placeholder="e.g., PCM, HEG"
+              />
             </div>
 
             <div class="form-group">

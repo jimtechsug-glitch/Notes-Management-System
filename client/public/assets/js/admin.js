@@ -8,8 +8,6 @@ let currentAdmin = null;
 let allStudents = [];
 let allSubjects = [];
 let allNotes = [];
-let allResources = [];
-let allQuizzes = []; // new global cache for quizzes
 
 // Token management functions
 function removeToken() {
@@ -24,34 +22,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Check authentication
 async function checkAuth() {
-  const token = getToken();
+  const token = localStorage.getItem("token");
   if (!token) {
-    window.location.href = "/pages/login.html?role=admin";
+    window.location.href = "/pages/login.html";
     return;
   }
 
   try {
-    const response = await authFetch(`${API_BASE}/auth/me`, {
+    const response = await fetch(`${API_BASE}/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
 
-    // 401 is handled by authFetch (redirect + removeToken)
-    if (response.status === 401) {
-      return;
-    }
-
     if (!response.ok) {
-      // Non-401 error - don't clear token, server might be temporarily down
-      const msg = await response.text();
-      console.error("Auth check failed:", response.status, msg);
-      if (confirm("Could not verify session. Retry?")) {
-        checkAuth();
-      } else {
-        window.location.href = "/pages/login.html?role=admin";
-      }
-      return;
+      throw new Error("Not authenticated");
     }
 
     const data = await response.json();
@@ -69,13 +54,9 @@ async function checkAuth() {
     currentAdmin = data.data;
     renderApp();
   } catch (error) {
-    // Network error or JSON parse error - don't clear token
     console.error("Auth check failed:", error);
-    if (confirm("Connection error. Retry?")) {
-      checkAuth();
-    } else {
-      window.location.href = "/pages/login.html?role=admin";
-    }
+    localStorage.removeItem("token");
+    window.location.href = "/pages/login.html";
   }
 }
 
@@ -86,7 +67,7 @@ function renderApp() {
         <!-- Navigation -->
         <nav class="admin-nav">
             <div class="nav-container">
-                <h1 class="nav-logo">Nsoma DigLibs</h1>
+                <h1 class="nav-logo">📚 Admin Dashboard</h1>
                 <div class="nav-user">
                     <span id="adminName">${currentAdmin.name}</span>
                     <button class="btn-logout" id="logoutBtn">Logout</button>
@@ -99,13 +80,10 @@ function renderApp() {
             <!-- Sidebar -->
             <aside class="admin-sidebar">
                 <ul class="sidebar-menu">
-                    <li><a href="#" class="sidebar-link active" data-tab="dashboard">Dashboard</a></li>
-                    <li><a href="#" class="sidebar-link" data-tab="students">Students</a></li>
-                    <li><a href="#" class="sidebar-link" data-tab="subjects">Subjects</a></li>
-                    <li><a href="#" class="sidebar-link" data-tab="notes">Notes</a></li>
-                    <li><a href="#" class="sidebar-link" data-tab="streams">Streams</a></li>
-                    <li><a href="#" class="sidebar-link" data-tab="resources">Resources</a></li>
-                    <li><a href="#" class="sidebar-link" data-tab="quizzes">Quizzes</a></li>
+                    <li><a href="#" class="sidebar-link active" data-tab="dashboard">📊 Dashboard</a></li>
+                    <li><a href="#" class="sidebar-link" data-tab="students">👥 Students</a></li>
+                    <li><a href="#" class="sidebar-link" data-tab="subjects">📖 Subjects</a></li>
+                    <li><a href="#" class="sidebar-link" data-tab="notes">📝 Notes</a></li>
                 </ul>
             </aside>
 
@@ -131,11 +109,9 @@ function setupEventListeners() {
   // Tab navigation
   document.querySelectorAll(".sidebar-link").forEach((link) => {
     link.addEventListener("click", (e) => {
+      e.preventDefault();
       const tabName = link.getAttribute("data-tab");
-      if (tabName) {
-        e.preventDefault();
-        switchTab(tabName);
-      }
+      switchTab(tabName);
     });
   });
 
@@ -165,12 +141,6 @@ function setupEventListeners() {
     } else if (e.target.classList.contains("delete-note-btn")) {
       deleteNote(e.target.getAttribute("data-note-id"));
     }
-    // note deletion is allowed; handler above takes care of it
-    // Resource actions
-    else if (e.target.classList.contains("edit-resource-btn")) {
-      editResource(e.target.getAttribute("data-resource-id"));
-    }
-    // Delete resource functionality removed - admins cannot delete resources
   });
 }
 
@@ -227,27 +197,6 @@ function switchTab(tabName) {
         setupNotesListeners();
         loadNotes();
       }, 10);
-    } else if (tabName === "streams") {
-      content = renderStreamsTab();
-      mainContent.innerHTML = content;
-      setTimeout(() => {
-        setupStreamsListeners();
-        loadStreams();
-      }, 10);
-    } else if (tabName === "resources") {
-      content = renderResourcesTab();
-      mainContent.innerHTML = content;
-      setTimeout(() => {
-        setupResourcesListeners();
-        loadResources();
-      }, 10);
-    } else if (tabName === "quizzes") {
-      content = renderQuizzesTab();
-      mainContent.innerHTML = content;
-      setTimeout(() => {
-        setupQuizzesListeners();
-        loadQuizzes();
-      }, 10);
     } else {
       console.error("Unknown tab:", tabName);
       mainContent.innerHTML = `<div class="error-message">Unknown tab: ${tabName}</div>`;
@@ -261,190 +210,6 @@ function switchTab(tabName) {
     if (mainContent) {
       mainContent.innerHTML = `<div class="error-message" style="padding: 2rem; color: red;">Error loading ${tabName}: ${error.message}<br><pre>${error.stack}</pre></div>`;
     }
-  }
-}
-
-// =====================
-// QUIZZES MANAGEMENT
-// =====================
-
-function renderQuizzesTab() {
-  return `
-        <div id="quizzes" class="tab-content">
-            <div class="section-header">
-                <h2>Quiz Management</h2>
-                <button class="btn-primary" id="addQuizBtn">+ Add Quiz</button>
-            </div>
-            <div class="filters">
-                <input type="text" id="quizSearch" placeholder="Search by title or subject..." />
-                <select id="quizLevelFilter">
-                    <option value="">All Levels</option>
-                    <option value="o-level">O-Level</option>
-                    <option value="a-level">A-Level</option>
-                </select>
-                <select id="quizClassFilter">
-                    <option value="">All Classes</option>
-                    <option value="s1">S1</option>
-                    <option value="s2">S2</option>
-                    <option value="s3">S3</option>
-                    <option value="s4">S4</option>
-                    <option value="s5">S5</option>
-                    <option value="s6">S6</option>
-                </select>
-                <button class="btn-secondary" id="quizFilterBtn">Filter</button>
-                <button class="btn-secondary" id="quizResetBtn">Reset</button>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Subject</th>
-                            <th>Level</th>
-                            <th>Class</th>
-                            <th>Type</th>
-                            <th>Uploaded</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="quizzesTableBody">
-                        <tr><td colspan="7" class="loading">Loading quizzes...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-}
-
-function setupQuizzesListeners() {
-  const addBtn = document.getElementById("addQuizBtn");
-  const filterBtn = document.getElementById("quizFilterBtn");
-  const resetBtn = document.getElementById("quizResetBtn");
-  const levelFilter = document.getElementById("quizLevelFilter");
-  const classFilter = document.getElementById("quizClassFilter");
-
-  if (addBtn) {
-    addBtn.addEventListener("click", () => {
-      // open modal instead of navigating to a new page
-      showQuizModal("Upload Quiz", null);
-    });
-  }
-  if (filterBtn) filterBtn.addEventListener("click", loadQuizzes);
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
-      document.getElementById("quizSearch").value = "";
-      levelFilter.value = "";
-      classFilter.value = "";
-      loadQuizzes();
-    });
-  }
-
-  if (levelFilter) {
-    levelFilter.addEventListener("change", () => {
-      const level = levelFilter.value;
-      classFilter.innerHTML = '<option value="">All Classes</option>';
-      if (level === "o-level") {
-        ["s1", "s2", "s3", "s4"].forEach((c) => {
-          classFilter.innerHTML += `<option value="${c}">${c.toUpperCase()}</option>`;
-        });
-      } else if (level === "a-level") {
-        ["s5", "s6"].forEach((c) => {
-          classFilter.innerHTML += `<option value="${c}">${c.toUpperCase()}</option>`;
-        });
-      }
-    });
-  }
-}
-
-async function loadQuizzes() {
-  try {
-    const search = document.getElementById("quizSearch").value;
-    const level = document.getElementById("quizLevelFilter").value;
-    const classLevel = document.getElementById("quizClassFilter").value;
-
-    let url = `${API_BASE}/quizzes`;
-    const params = new URLSearchParams();
-    if (search) params.append("search", search);
-    if (level) params.append("level", level);
-    if (classLevel) params.append("class", classLevel);
-    if (params.toString()) url += "?" + params.toString();
-
-    const response = await authFetch(url, {
-      headers: getAuthHeaders(),
-    });
-
-    if (!response.ok) throw new Error("Failed to load quizzes");
-    const data = await response.json();
-    allQuizzes = data.data || [];
-    displayQuizzes(allQuizzes);
-  } catch (error) {
-    console.error("Failed to load quizzes:", error);
-    const tbody = document.getElementById("quizzesTableBody");
-    if (tbody)
-      tbody.innerHTML = `<tr><td colspan="7" class="no-data">Error loading quizzes</td></tr>`;
-  }
-}
-
-function displayQuizzes(quizzes) {
-  const tbody = document.getElementById("quizzesTableBody");
-  if (!tbody) return;
-
-  if (quizzes.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="7" class="no-data">No quizzes found</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = quizzes
-    .map(
-      (quiz) => `
-        <tr>
-            <td>${quiz.title}</td>
-            <td>${quiz.subject}</td>
-            <td>${quiz.level}</td>
-            <td>${quiz.class.toUpperCase()}</td>
-            <td>${quiz.type === "file" ? "File" : "Text"}</td>
-            <td>${new Date(quiz.createdAt).toLocaleDateString()}</td>
-            <td>
-                <button class="btn-sm btn-secondary edit-quiz-btn" data-quiz-id="${quiz.id}">Edit</button>
-                <button class="btn-sm btn-danger delete-quiz-btn" data-quiz-id="${quiz.id}">Delete</button>
-            </td>
-        </tr>
-    `,
-    )
-    .join("");
-
-  // attach edit handlers
-  document.querySelectorAll(".edit-quiz-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const id = e.target.getAttribute("data-quiz-id");
-      editQuiz(id);
-    });
-  });
-
-  // attach delete handlers
-  document.querySelectorAll(".delete-quiz-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      const id = e.target.getAttribute("data-quiz-id");
-      deleteQuiz(id);
-    });
-  });
-}
-
-async function deleteQuiz(id) {
-  if (!id) return;
-  if (!confirm("Are you sure you want to delete this quiz?")) return;
-
-  try {
-    const response = await authFetch(`${API_BASE}/quizzes/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error("Failed to delete quiz");
-    loadQuizzes();
-  } catch (error) {
-    console.error("Failed to delete quiz:", error);
-    showError("Failed to delete quiz");
   }
 }
 
@@ -473,10 +238,6 @@ function renderDashboard() {
                     <h3>Total Notes</h3>
                     <p class="stat-number" id="totalNotes">0</p>
                 </div>
-                <div class="stat-card">
-                    <h3>Resources</h3>
-                    <p class="stat-number" id="totalResources">0</p>
-                </div>
             </div>
         </div>
     `;
@@ -484,13 +245,11 @@ function renderDashboard() {
 
 async function loadDashboard() {
   try {
-    const [studentsRes, subjectsRes, notesRes, resourcesRes] =
-      await Promise.all([
-        authFetch(`${API_BASE}/users`, { headers: getAuthHeaders() }),
-        authFetch(`${API_BASE}/subjects`, { headers: getAuthHeaders() }),
-        authFetch(`${API_BASE}/notes`, { headers: getAuthHeaders() }),
-        authFetch(`${API_BASE}/resources`, { headers: getAuthHeaders() }),
-      ]);
+    const [studentsRes, subjectsRes, notesRes] = await Promise.all([
+      fetch(`${API_BASE}/users`, { headers: getAuthHeaders() }),
+      fetch(`${API_BASE}/subjects`, { headers: getAuthHeaders() }),
+      fetch(`${API_BASE}/notes`, { headers: getAuthHeaders() }),
+    ]);
 
     const studentsData = await studentsRes.json();
     const subjectsData = await subjectsRes.json();
@@ -499,8 +258,6 @@ async function loadDashboard() {
     const students = studentsData.data || [];
     const subjects = subjectsData.data || [];
     const notes = notesData.data || [];
-    const resourcesData = await resourcesRes.json();
-    const resources = resourcesData.data || [];
 
     const totalStudentsEl = document.getElementById("totalStudents");
     const pendingStudentsEl = document.getElementById("pendingStudents");
@@ -527,10 +284,6 @@ async function loadDashboard() {
 
     if (totalNotesEl) {
       totalNotesEl.textContent = notes.length;
-    }
-    const totalResourcesEl = document.getElementById("totalResources");
-    if (totalResourcesEl) {
-      totalResourcesEl.textContent = resources.length;
     }
   } catch (error) {
     console.error("Failed to load dashboard:", error);
@@ -591,7 +344,7 @@ function setupStudentsListeners() {
 
 async function loadStudents() {
   try {
-    const response = await authFetch(`${API_BASE}/users`, {
+    const response = await fetch(`${API_BASE}/users`, {
       headers: getAuthHeaders(),
     });
 
@@ -660,7 +413,7 @@ async function confirmStudent(id) {
   if (!confirm("Confirm this student's account?")) return;
 
   try {
-    const response = await authFetch(`${API_BASE}/users/${id}`, {
+    const response = await fetch(`${API_BASE}/users/${id}`, {
       method: "PUT",
       headers: {
         ...getAuthHeaders(),
@@ -684,7 +437,7 @@ async function deactivateStudent(id) {
   if (!confirm("Deactivate this student's account?")) return;
 
   try {
-    const response = await authFetch(`${API_BASE}/users/${id}`, {
+    const response = await fetch(`${API_BASE}/users/${id}`, {
       method: "PUT",
       headers: {
         ...getAuthHeaders(),
@@ -706,7 +459,7 @@ async function deactivateStudent(id) {
 
 async function activateStudent(id) {
   try {
-    const response = await authFetch(`${API_BASE}/users/${id}`, {
+    const response = await fetch(`${API_BASE}/users/${id}`, {
       method: "PUT",
       headers: {
         ...getAuthHeaders(),
@@ -735,7 +488,7 @@ async function deleteStudent(id) {
     return;
 
   try {
-    const response = await authFetch(`${API_BASE}/users/${id}`, {
+    const response = await fetch(`${API_BASE}/users/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -852,7 +605,7 @@ async function loadSubjects() {
     if (classLevel) params.append("class", classLevel);
     if (params.toString()) url += "?" + params.toString();
 
-    const response = await authFetch(url, {
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
 
@@ -890,8 +643,8 @@ function displaySubjects(subjects) {
                   ? subject.classes.join(", ").toUpperCase()
                   : "-"
             }</td>
-            <td>${subject.isCompulsory ? "Compulsory" : "Optional"}</td>
-            <td>${subject.stream ? subject.stream.charAt(0).toUpperCase() + subject.stream.slice(1) : "-"}</td>
+            <td>${subject.isCompulsory ? "Yes" : "No"}</td>
+            <td>${subject.stream || "-"}</td>
             <td>
                 <button class="btn-sm btn-primary edit-subject-btn" data-subject-id="${subject.id}">Edit</button>
                 <button class="btn-sm btn-danger delete-subject-btn" data-subject-id="${subject.id}">Delete</button>
@@ -943,12 +696,13 @@ function showSubjectModal(title, subject) {
                     <input type="checkbox" id="subjectCompulsory" ${subject && subject.isCompulsory ? "checked" : ""}> Compulsory Subject
                 </label>
             </div>
-            <div class="form-group" id="subjectStreamGroup" style="${subject && subject.level === "a-level" ? "" : "display:none;"}">
-                <label>Principal Stream (A-Level)</label>
-                <select id="subjectStream" ${subject && subject.level === "a-level" ? "required" : ""}>
-                    <option value="">None (O-Level)</option>
+            <div class="form-group">
+                <label>Stream</label>
+                <select id="subjectStream">
+                    <option value="">None</option>
                     <option value="arts" ${subject && subject.stream === "arts" ? "selected" : ""}>Arts</option>
                     <option value="science" ${subject && subject.stream === "science" ? "selected" : ""}>Science</option>
+                    <option value="both" ${subject && subject.stream === "both" ? "selected" : ""}>Both</option>
                 </select>
             </div>
             <div class="form-actions">
@@ -982,8 +736,6 @@ function showSubjectModal(title, subject) {
 function updateSubjectClassOptions() {
   const level = document.getElementById("subjectLevel").value;
   const classSelect = document.getElementById("subjectClass");
-  const streamDiv = document.getElementById("subjectStreamGroup");
-  const streamSelect = document.getElementById("subjectStream");
 
   classSelect.innerHTML = '<option value="">Select Class</option>';
 
@@ -994,15 +746,11 @@ function updateSubjectClassOptions() {
             <option value="s3">S3</option>
             <option value="s4">S4</option>
         `;
-    if (streamDiv) streamDiv.style.display = "none";
-    if (streamSelect) streamSelect.required = false;
   } else if (level === "a-level") {
     classSelect.innerHTML += `
             <option value="s5">S5</option>
             <option value="s6">S6</option>
         `;
-    if (streamDiv) streamDiv.style.display = "block";
-    if (streamSelect) streamSelect.required = true;
   }
 }
 
@@ -1019,17 +767,11 @@ async function saveSubject(event) {
     stream: document.getElementById("subjectStream").value || null,
   };
 
-  // ensure stream is provided when required
-  if (subjectData.level === "a-level" && !subjectData.stream) {
-    showError("Please select a stream for A-Level subjects");
-    return;
-  }
-
   try {
     const url = id ? `${API_BASE}/subjects/${id}` : `${API_BASE}/subjects`;
     const method = id ? "PUT" : "POST";
 
-    const response = await authFetch(url, {
+    const response = await fetch(url, {
       method,
       headers: {
         ...getAuthHeaders(),
@@ -1059,7 +801,7 @@ async function deleteSubject(id) {
   if (!confirm("Are you sure you want to delete this subject?")) return;
 
   try {
-    const response = await authFetch(`${API_BASE}/subjects/${id}`, {
+    const response = await fetch(`${API_BASE}/subjects/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -1152,7 +894,7 @@ async function loadNotes() {
     if (classLevel) params.append("class", classLevel);
     if (params.toString()) url += "?" + params.toString();
 
-    const response = await authFetch(url, {
+    const response = await fetch(url, {
       headers: getAuthHeaders(),
     });
 
@@ -1219,9 +961,7 @@ function showNoteModal(title, note) {
             </div>
             <div class="form-group">
                 <label>Subject *</label>
-                <select id="noteSubject" required>
-                    <option value="">Select Class First</option>
-                </select>
+                <input type="text" id="noteSubject" value="${note ? note.subject : ""}" required>
             </div>
             <div class="form-group">
                 <label>Level *</label>
@@ -1237,24 +977,9 @@ function showNoteModal(title, note) {
                     <option value="">Select Level First</option>
                 </select>
             </div>
-            <div class="form-group d-none" id="noteClassStreamGroup">
-                <label>Class Stream (O-Level)</label>
-                <select id="noteClassStream">
-                    <option value="">All Streams</option>
-                </select>
-            </div>
-            <div class="form-group d-none" id="noteStreamGroup">
-                <label>Academic Stream (A-Level)</label>
-                <select id="noteStream">
-                    <option value="">All Streams</option>
-                    <option value="arts" ${note && note.stream === "arts" ? "selected" : ""}>Arts</option>
-                    <option value="science" ${note && note.stream === "science" ? "selected" : ""}>Science</option>
-                </select>
-            </div>
             <div class="form-group">
-                <label>Combination Codes (A-Level)</label>
-                <input type="text" id="noteCombination" value="${note ? note.combination || "" : ""}" placeholder="e.g. PCM (Optional)">
-                <small>Leave blank to show to all students in the level/class</small>
+                <label>Combination (A-Level only)</label>
+                <input type="text" id="noteCombination" value="${note ? note.combination || "" : ""}" placeholder="e.g., PCM, PCB">
             </div>
             <div class="form-group">
                 <label>File ${note ? "" : "*"}</label>
@@ -1270,18 +995,11 @@ function showNoteModal(title, note) {
   showModal(title, modalContent, () => {
     const noteLevel = document.getElementById("noteLevel");
     if (noteLevel) {
-      noteLevel.addEventListener("change", () => {
-        updateNoteClassOptions();
-        updateNoteSubjects();
-      });
+      noteLevel.addEventListener("change", updateNoteClassOptions);
       if (note) {
         updateNoteClassOptions();
         setTimeout(() => {
           document.getElementById("noteClass").value = note.class;
-          updateNoteSubjects().then(() => {
-            if (note.subject)
-              document.getElementById("noteSubject").value = note.subject;
-          });
         }, 10);
       }
     }
@@ -1292,37 +1010,12 @@ function showNoteModal(title, note) {
     document
       .getElementById("cancelNoteBtn")
       .addEventListener("click", closeModal);
-
-    const noteClass = document.getElementById("noteClass");
-    if (noteClass) {
-      noteClass.addEventListener("change", () => {
-        updateNoteClassStreams();
-        updateNoteSubjects();
-      });
-      if (note && note.classStream) {
-        updateNoteClassStreams().then(() => {
-          document.getElementById("noteClassStream").value = note.classStream;
-        });
-      }
-    }
-
-    const noteStream = document.getElementById("noteStream");
-    if (noteStream) {
-      noteStream.addEventListener("change", () => {
-        updateNoteSubjects();
-      });
-      if (note && note.stream) {
-        // updateNoteSubjects already called on noteClass set earlier
-      }
-    }
   });
 }
 
 function updateNoteClassOptions() {
   const level = document.getElementById("noteLevel").value;
   const classSelect = document.getElementById("noteClass");
-  const classStreamGroup = document.getElementById("noteClassStreamGroup");
-  const streamGroup = document.getElementById("noteStreamGroup");
 
   classSelect.innerHTML = '<option value="">Select Class</option>';
 
@@ -1333,77 +1026,11 @@ function updateNoteClassOptions() {
             <option value="s3">S3</option>
             <option value="s4">S4</option>
         `;
-    classStreamGroup.classList.remove("d-none");
-    streamGroup.classList.add("d-none");
   } else if (level === "a-level") {
     classSelect.innerHTML += `
             <option value="s5">S5</option>
             <option value="s6">S6</option>
         `;
-    classStreamGroup.classList.add("d-none");
-    streamGroup.classList.remove("d-none");
-  }
-}
-
-async function updateNoteClassStreams() {
-  const classVal = document.getElementById("noteClass").value;
-  const streamSelect = document.getElementById("noteClassStream");
-  if (!classVal || document.getElementById("noteLevel").value !== "o-level")
-    return;
-
-  streamSelect.innerHTML = '<option value="">Loading...</option>';
-  try {
-    const res = await fetch(`/api/streams?class=${classVal}`);
-    const data = await res.json();
-    const streams = data.data || [];
-    streamSelect.innerHTML = '<option value="">All Streams</option>';
-    streams.forEach((s) => {
-      streamSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`;
-    });
-  } catch (err) {
-    streamSelect.innerHTML = '<option value="">Error</option>';
-  }
-}
-
-// load subjects for note modal when level/class (and optionally stream) are chosen
-async function updateNoteSubjects() {
-  const level = document.getElementById("noteLevel").value;
-  const classVal = document.getElementById("noteClass").value;
-  const subjectSelect = document.getElementById("noteSubject");
-  if (!subjectSelect) return;
-
-  subjectSelect.innerHTML = '<option value="">Loading...</option>';
-  try {
-    const params = new URLSearchParams();
-    if (level) params.append("level", level);
-    if (classVal) params.append("class", classVal);
-    if (level === "a-level") {
-      const streamVal = document.getElementById("noteStream")?.value;
-      if (streamVal) params.append("stream", streamVal);
-    }
-    const res = await fetch(`${API_BASE}/subjects?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to load subjects");
-    const data = await res.json();
-    const subjects = data.data || [];
-    if (subjects.length === 0) {
-      subjectSelect.innerHTML =
-        '<option value="">No subjects found for this class</option>';
-      subjectSelect.disabled = true;
-    } else {
-      subjectSelect.innerHTML =
-        '<option value="">Select Subject</option>' +
-        subjects
-          .map((s) => `<option value="${s.name}">${s.name}</option>`)
-          .join("");
-      subjectSelect.disabled = false;
-    }
-  } catch (err) {
-    console.error("Error loading note subjects:", err);
-    subjectSelect.innerHTML =
-      '<option value="">Error loading subjects</option>';
-    subjectSelect.disabled = true;
   }
 }
 
@@ -1425,15 +1052,6 @@ async function saveNote(event) {
   const combination = document.getElementById("noteCombination").value;
   if (combination) formData.append("combination", combination);
 
-  const classLevel = document.getElementById("noteLevel").value;
-  if (classLevel === "o-level") {
-    const classStream = document.getElementById("noteClassStream").value;
-    if (classStream) formData.append("classStream", classStream);
-  } else if (classLevel === "a-level") {
-    const stream = document.getElementById("noteStream").value;
-    if (stream) formData.append("stream", stream);
-  }
-
   const fileInput = document.getElementById("noteFile");
   if (fileInput.files.length > 0) {
     formData.append("file", fileInput.files[0]);
@@ -1443,10 +1061,10 @@ async function saveNote(event) {
     const url = id ? `${API_BASE}/notes/${id}` : `${API_BASE}/notes`;
     const method = id ? "PUT" : "POST";
 
-    const response = await authFetch(url, {
+    const response = await fetch(url, {
       method,
       headers: {
-        Authorization: `Bearer ${getToken()}`,
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
       body: formData,
     });
@@ -1472,7 +1090,7 @@ async function deleteNote(id) {
   if (!confirm("Are you sure you want to delete this note?")) return;
 
   try {
-    const response = await authFetch(`${API_BASE}/notes/${id}`, {
+    const response = await fetch(`${API_BASE}/notes/${id}`, {
       method: "DELETE",
       headers: getAuthHeaders(),
     });
@@ -1488,746 +1106,13 @@ async function deleteNote(id) {
   }
 }
 
-// QUIZ MODAL HELPERS
-function showAddQuizModal() {
-  showQuizModal("Upload Quiz", null);
-}
-
-function editQuiz(id) {
-  const quiz = allQuizzes.find((q) => q.id === id);
-  if (!quiz) return;
-  showQuizModal("Edit Quiz", quiz);
-}
-
-function showQuizModal(title, quiz) {
-  const modalContent = `
-        <form id="quizForm" enctype="multipart/form-data">
-            <input type="hidden" id="quizId" value="${quiz ? quiz.id : ""}">
-            <div class="form-group">
-                <label>Title *</label>
-                <input type="text" id="quizTitle" value="${quiz ? quiz.title : ""}" required>
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea id="quizDescription" rows="3">${quiz ? quiz.description || "" : ""}</textarea>
-            </div>
-            <div class="form-group">
-                <label>Subject *</label>
-                <select id="quizSubject" required>
-                    <option value="">Select Class First</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Level *</label>
-                <select id="quizLevel" required>
-                    <option value="">Select Level</option>
-                    <option value="o-level" ${quiz && quiz.level === "o-level" ? "selected" : ""}>O-Level</option>
-                    <option value="a-level" ${quiz && quiz.level === "a-level" ? "selected" : ""}>A-Level</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Class *</label>
-                <select id="quizClass" required>
-                    <option value="">Select Level First</option>
-                </select>
-            </div>
-            <div class="form-group d-none" id="quizClassStreamGroup">
-                <label>Class Stream (O-Level)</label>
-                <select id="quizClassStream">
-                    <option value="">All Streams</option>
-                </select>
-            </div>
-            <div class="form-group d-none" id="quizStreamGroup">
-                <label>Academic Stream (A-Level)</label>
-                <select id="quizStream">
-                    <option value="">All Streams</option>
-                    <option value="arts" ${quiz && quiz.stream === "arts" ? "selected" : ""}>Arts</option>
-                    <option value="science" ${quiz && quiz.stream === "science" ? "selected" : ""}>Science</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Combination Codes (A-Level)</label>
-                <input type="text" id="quizCombination" value="${quiz ? quiz.combination || "" : ""}" placeholder="e.g. PCM (Optional)">
-                <small>Leave blank to show to all students in the level/class</small>
-            </div>
-            <div class="form-group">
-                <label>Type *</label>
-                <div>
-                    <label><input type="radio" name="quizType" value="file" ${quiz && quiz.type === "file" ? "checked" : ""} ${!quiz || quiz.type === "file" ? "checked" : ""}> File</label>
-                    <label><input type="radio" name="quizType" value="text" ${quiz && quiz.type === "text" ? "checked" : ""}> Text</label>
-                </div>
-            </div>
-            <div class="form-group" id="quizFileGroup" ${quiz && quiz.type === "text" ? 'class="d-none"' : ""}>
-                <label>Quiz File ${quiz ? "" : "*"}</label>
-                <input type="file" id="quizFile" accept=".pdf,.doc,.docx,.txt" ${quiz ? "" : "required"}>
-            </div>
-            <div class="form-group d-none" id="quizTextGroup" ${quiz && quiz.type === "text" ? "" : 'class="d-none"'}>
-                <label>Quiz Questions</label>
-                <textarea id="quizContent" rows="5">${quiz && quiz.content ? quiz.content : ""}</textarea>
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn-secondary" id="cancelQuizBtn">Cancel</button>
-                <button type="submit" class="btn-primary">${quiz ? "Save Changes" : "Upload Quiz"}</button>
-            </div>
-        </form>
-    `;
-
-  showModal(title, modalContent, () => {
-    const quizLevel = document.getElementById("quizLevel");
-    if (quizLevel) {
-      quizLevel.addEventListener("change", () => {
-        updateQuizClassOptions();
-        updateQuizSubjects();
-      });
-      if (quiz) {
-        updateQuizClassOptions();
-        setTimeout(() => {
-          document.getElementById("quizClass").value = quiz.class;
-          updateQuizSubjects().then(() => {
-            if (quiz.subject)
-              document.getElementById("quizSubject").value = quiz.subject;
-          });
-        }, 10);
-      }
-    }
-
-    const form = document.getElementById("quizForm");
-    form.addEventListener("submit", saveQuiz);
-
-    document
-      .getElementById("cancelQuizBtn")
-      .addEventListener("click", closeModal);
-
-    const quizClass = document.getElementById("quizClass");
-    if (quizClass) {
-      quizClass.addEventListener("change", () => {
-        updateQuizClassStreams();
-        updateQuizSubjects();
-      });
-      if (quiz && quiz.classStream) {
-        updateQuizClassStreams().then(() => {
-          document.getElementById("quizClassStream").value = quiz.classStream;
-        });
-      }
-    }
-
-    const quizStream = document.getElementById("quizStream");
-    if (quizStream) {
-      quizStream.addEventListener("change", () => {
-        updateQuizSubjects();
-      });
-    }
-
-    // type radios logic
-    document.getElementsByName("quizType").forEach((radio) => {
-      radio.addEventListener("change", (e) => {
-        const isFile = e.target.value === "file";
-        document
-          .getElementById("quizFileGroup")
-          .classList.toggle("d-none", !isFile);
-        document
-          .getElementById("quizTextGroup")
-          .classList.toggle("d-none", isFile);
-      });
-    });
-  });
-}
-
-function updateQuizClassOptions() {
-  const level = document.getElementById("quizLevel").value;
-  const classSelect = document.getElementById("quizClass");
-  const classStreamGroup = document.getElementById("quizClassStreamGroup");
-  const streamGroup = document.getElementById("quizStreamGroup");
-
-  classSelect.innerHTML = '<option value="">Select Class</option>';
-
-  if (level === "o-level") {
-    classSelect.innerHTML += `
-            <option value="s1">S1</option>
-            <option value="s2">S2</option>
-            <option value="s3">S3</option>
-            <option value="s4">S4</option>
-        `;
-    classStreamGroup.classList.remove("d-none");
-    streamGroup.classList.add("d-none");
-  } else if (level === "a-level") {
-    classSelect.innerHTML += `
-            <option value="s5">S5</option>
-            <option value="s6">S6</option>
-        `;
-    classStreamGroup.classList.add("d-none");
-    streamGroup.classList.remove("d-none");
-  }
-}
-
-async function updateQuizClassStreams() {
-  const classVal = document.getElementById("quizClass").value;
-  const streamSelect = document.getElementById("quizClassStream");
-  if (!classVal || document.getElementById("quizLevel").value !== "o-level")
-    return;
-
-  streamSelect.innerHTML = '<option value="">Loading...</option>';
-  try {
-    const res = await fetch(`/api/streams?class=${classVal}`);
-    const data = await res.json();
-    const streams = data.data || [];
-    streamSelect.innerHTML = '<option value="">All Streams</option>';
-    streams.forEach((s) => {
-      streamSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`;
-    });
-  } catch (err) {
-    streamSelect.innerHTML = '<option value="">Error</option>';
-  }
-}
-
-async function updateQuizSubjects() {
-  const level = document.getElementById("quizLevel").value;
-  const classVal = document.getElementById("quizClass").value;
-  const subjectSelect = document.getElementById("quizSubject");
-  if (!subjectSelect) return;
-
-  subjectSelect.innerHTML = '<option value="">Loading...</option>';
-  try {
-    const params = new URLSearchParams();
-    if (level) params.append("level", level);
-    if (classVal) params.append("class", classVal);
-    if (level === "a-level") {
-      const streamVal = document.getElementById("quizStream")?.value;
-      if (streamVal) params.append("stream", streamVal);
-    }
-    const res = await fetch(`${API_BASE}/subjects?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to load subjects");
-    const data = await res.json();
-    const subjects = data.data || [];
-    if (subjects.length === 0) {
-      subjectSelect.innerHTML =
-        '<option value="">No subjects found for this class</option>';
-      subjectSelect.disabled = true;
-    } else {
-      subjectSelect.innerHTML =
-        '<option value="">Select Subject</option>' +
-        subjects
-          .map((s) => `<option value="${s.name}">${s.name}</option>`)
-          .join("");
-      subjectSelect.disabled = false;
-    }
-  } catch (err) {
-    console.error("Error loading quiz subjects:", err);
-    subjectSelect.innerHTML =
-      '<option value="">Error loading subjects</option>';
-    subjectSelect.disabled = true;
-  }
-}
-
-async function saveQuiz(event) {
-  event.preventDefault();
-
-  const id = document.getElementById("quizId").value;
-  const formData = new FormData();
-
-  formData.append("title", document.getElementById("quizTitle").value);
-  formData.append(
-    "description",
-    document.getElementById("quizDescription").value,
-  );
-  formData.append("subject", document.getElementById("quizSubject").value);
-  formData.append("level", document.getElementById("quizLevel").value);
-  formData.append("class", document.getElementById("quizClass").value);
-
-  const combination = document.getElementById("quizCombination").value;
-  if (combination) formData.append("combination", combination);
-
-  const classLevel = document.getElementById("quizLevel").value;
-  if (classLevel === "o-level") {
-    const classStream = document.getElementById("quizClassStream").value;
-    if (classStream) formData.append("classStream", classStream);
-  } else if (classLevel === "a-level") {
-    const stream = document.getElementById("quizStream").value;
-    if (stream) formData.append("stream", stream);
-  }
-
-  const type = Array.from(document.getElementsByName("quizType")).find(
-    (r) => r.checked,
-  ).value;
-  formData.append("type", type);
-
-  if (type === "file") {
-    const fileInput = document.getElementById("quizFile");
-    if (fileInput.files.length > 0) {
-      formData.append("file", fileInput.files[0]);
-    } else if (!id) {
-      showError("Please select a file to upload");
-      return;
-    }
-  } else {
-    const content = document.getElementById("quizContent").value;
-    if (!content || content.trim() === "") {
-      showError("Please provide quiz questions for a plain text quiz");
-      return;
-    }
-    formData.append("content", content);
-  }
-
-  try {
-    const url = id ? `${API_BASE}/quizzes/${id}` : `${API_BASE}/quizzes`;
-    const method = id ? "PUT" : "POST";
-
-    const response = await authFetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${getToken()}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || "Failed to save quiz");
-    }
-
-    showSuccess(id ? "Quiz updated" : "Quiz uploaded");
-    closeModal();
-    loadQuizzes();
-    loadDashboard();
-  } catch (error) {
-    console.error("Failed to save quiz:", error);
-    showError(error.message || "Failed to save quiz");
-  }
-}
-
-// ============================================
-// RESOURCES MANAGEMENT
-// ============================================
-
-function renderResourcesTab() {
-  return `
-        <div id="resources" class="tab-content">
-            <div class="section-header">
-                <h2>Resources (Links)</h2>
-                <button class="btn-primary" id="addResourceBtn">+ Add Resource</button>
-            </div>
-            <div class="filters">
-                <select id="resourceLevelFilter">
-                    <option value="">All Levels</option>
-                    <option value="o-level">O-Level</option>
-                    <option value="a-level">A-Level</option>
-                </select>
-                <select id="resourceClassFilter">
-                    <option value="">All Classes</option>
-                    <option value="s1">S1</option>
-                    <option value="s2">S2</option>
-                    <option value="s3">S3</option>
-                    <option value="s4">S4</option>
-                    <option value="s5">S5</option>
-                    <option value="s6">S6</option>
-                </select>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>URL</th>
-                            <th>Subject</th>
-                            <th>Level</th>
-                            <th>Class</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="resourcesTableBody">
-                        <tr><td colspan="6" class="loading">Loading resources...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-}
-
-function setupResourcesListeners() {
-  const addResourceBtn = document.getElementById("addResourceBtn");
-  const resourceLevelFilter = document.getElementById("resourceLevelFilter");
-  const resourceClassFilter = document.getElementById("resourceClassFilter");
-  if (addResourceBtn)
-    addResourceBtn.addEventListener("click", showAddResourceModal);
-  if (resourceLevelFilter)
-    resourceLevelFilter.addEventListener("change", loadResources);
-  if (resourceClassFilter)
-    resourceClassFilter.addEventListener("change", loadResources);
-}
-
-async function loadResources() {
-  try {
-    const level = document.getElementById("resourceLevelFilter")?.value || "";
-    const classLevel =
-      document.getElementById("resourceClassFilter")?.value || "";
-    let url = `${API_BASE}/resources`;
-    const params = new URLSearchParams();
-    if (level) params.append("level", level);
-    if (classLevel) params.append("class", classLevel);
-    if (params.toString()) url += "?" + params.toString();
-    const response = await authFetch(url, { headers: getAuthHeaders() });
-    if (!response.ok) throw new Error("Failed to load resources");
-    const data = await response.json();
-    allResources = data.data || [];
-    displayResources(allResources);
-  } catch (error) {
-    console.error("Failed to load resources:", error);
-    showError("Failed to load resources");
-  }
-}
-
-function displayResources(resources) {
-  const tbody = document.getElementById("resourcesTableBody");
-  if (!tbody) return;
-  if (resources.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="6" class="no-data">No resources found</td></tr>';
-    return;
-  }
-  tbody.innerHTML = resources
-    .map(
-      (r) => `
-    <tr>
-        <td>${r.title}</td>
-        <td><a href="${r.url}" target="_blank" rel="noopener">${r.url.substring(0, 40)}${r.url.length > 40 ? "..." : ""}</a></td>
-        <td>${r.subject || "-"}</td>
-        <td>${r.level}</td>
-        <td>${r.class.toUpperCase()}</td>
-        <td>
-            <button class="btn-sm btn-primary edit-resource-btn" data-resource-id="${r.id}">Edit</button>
-        </td>
-    </tr>
-  `,
-    )
-    .join("");
-}
-
-function showAddResourceModal() {
-  showResourceModal("Add Resource", null);
-}
-
-function editResource(id) {
-  const resource = allResources.find((r) => r.id === id);
-  if (!resource) return;
-  showResourceModal("Edit Resource", resource);
-}
-
-function showResourceModal(title, resource) {
-  const combos = [
-    "PCM",
-    "PCB",
-    "BCG",
-    "HEG",
-    "HEL",
-    "MEG",
-    "DEG",
-    "MPG",
-    "BCM",
-    "HGL",
-    "AKR",
-  ];
-  const comboOpts = combos
-    .map(
-      (c) =>
-        `<option value="${c}" ${resource && resource.combination === c ? "selected" : ""}>${c}</option>`,
-    )
-    .join("");
-  const modalContent = `
-        <form id="resourceForm">
-            <input type="hidden" id="resourceId" value="${resource ? resource.id : ""}">
-            <div class="form-group">
-                <label>Title *</label>
-                <input type="text" id="resourceTitle" value="${resource ? resource.title : ""}" required>
-            </div>
-            <div class="form-group">
-                <label>URL *</label>
-                <input type="url" id="resourceUrl" value="${resource ? resource.url : ""}" placeholder="https://youtube.com/..." required>
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea id="resourceDescription" rows="2">${resource ? resource.description || "" : ""}</textarea>
-            </div>
-            <div class="form-group">
-                <label>Subject</label>
-                <select id="resourceSubject" required>
-                    <option value="">Select Class First</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Level *</label>
-                <select id="resourceLevel" required>
-                    <option value="">Select Level</option>
-                    <option value="o-level" ${resource && resource.level === "o-level" ? "selected" : ""}>O-Level</option>
-                    <option value="a-level" ${resource && resource.level === "a-level" ? "selected" : ""}>A-Level</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Class *</label>
-                <select id="resourceClass" required>
-                    <option value="">Select Class</option>
-                    <option value="s1" ${resource && resource.class === "s1" ? "selected" : ""}>S1</option>
-                    <option value="s2" ${resource && resource.class === "s2" ? "selected" : ""}>S2</option>
-                    <option value="s3" ${resource && resource.class === "s3" ? "selected" : ""}>S3</option>
-                    <option value="s4" ${resource && resource.class === "s4" ? "selected" : ""}>S4</option>
-                    <option value="s5" ${resource && resource.class === "s5" ? "selected" : ""}>S5</option>
-                    <option value="s6" ${resource && resource.class === "s6" ? "selected" : ""}>S6</option>
-                </select>
-            </div>
-            <div class="form-group d-none" id="resourceClassStreamGroup">
-                <label>Class Stream (O-Level)</label>
-                <select id="resourceClassStream">
-                    <option value="">All Streams</option>
-                </select>
-            </div>
-            <div class="form-group d-none" id="resourceStreamGroup">
-                <label>Academic Stream (A-Level)</label>
-                <select id="resourceStream">
-                    <option value="">All Streams</option>
-                    <option value="arts" ${resource && resource.stream === "arts" ? "selected" : ""}>Arts</option>
-                    <option value="science" ${resource && resource.stream === "science" ? "selected" : ""}>Science</option>
-                </select>
-            </div>
-            <div class="form-group" id="resourceCombinationGroup">
-                <label>Combination (A-Level only)</label>
-                <select id="resourceCombination">
-                    <option value="">Any</option>
-                    ${comboOpts}
-                </select>
-            </div>
-            <div class="form-actions">
-                <button type="button" class="btn-secondary" id="cancelResourceBtn">Cancel</button>
-                <button type="submit" class="btn-primary">Save Resource</button>
-            </div>
-        </form>
-    `;
-  showModal(title, modalContent, () => {
-    // after modal is shown we need to wire up dynamic behavior
-    const resourceLevel = document.getElementById("resourceLevel");
-    if (resourceLevel) {
-      resourceLevel.addEventListener("change", () => {
-        updateResourceClassOptions();
-        updateResourceSubjects();
-      });
-      if (resource) {
-        updateResourceClassOptions();
-        // set class after options population and then load subjects
-        setTimeout(() => {
-          document.getElementById("resourceClass").value = resource.class;
-          updateResourceSubjects().then(() => {
-            if (resource.subject) {
-              document.getElementById("resourceSubject").value =
-                resource.subject;
-            }
-          });
-        }, 10);
-      }
-    }
-
-    const resourceClass = document.getElementById("resourceClass");
-    if (resourceClass) {
-      resourceClass.addEventListener("change", () => {
-        updateResourceClassStreams();
-        updateResourceSubjects();
-      });
-      if (resource && resource.classStream) {
-        updateResourceClassStreams().then(() => {
-          document.getElementById("resourceClassStream").value =
-            resource.classStream;
-        });
-      }
-    }
-
-    const resourceStream = document.getElementById("resourceStream");
-    if (resourceStream) {
-      resourceStream.addEventListener("change", () => {
-        const comboGroup = document.getElementById("resourceCombinationGroup");
-        if (comboGroup) {
-          if (resourceStream.value) comboGroup.classList.remove("d-none");
-          else comboGroup.classList.add("d-none");
-        }
-        updateResourceSubjects();
-      });
-      if (resource && resource.stream) {
-        const comboGroup = document.getElementById("resourceCombinationGroup");
-        if (comboGroup) comboGroup.classList.remove("d-none");
-      }
-    }
-
-    document
-      .getElementById("resourceForm")
-      .addEventListener("submit", saveResource);
-    document
-      .getElementById("cancelResourceBtn")
-      .addEventListener("click", closeModal);
-  });
-}
-
-async function saveResource(event) {
-  event.preventDefault();
-  const id = document.getElementById("resourceId").value;
-  const body = {
-    title: document.getElementById("resourceTitle").value,
-    url: document.getElementById("resourceUrl").value,
-    description: document.getElementById("resourceDescription").value,
-    subject: document.getElementById("resourceSubject").value || null,
-    level: document.getElementById("resourceLevel").value,
-    class: document.getElementById("resourceClass").value,
-    combination: document.getElementById("resourceCombination").value || null,
-    classStream:
-      document.getElementById("resourceLevel").value === "o-level"
-        ? document.getElementById("resourceClassStream")
-          ? document.getElementById("resourceClassStream").value
-          : null
-        : null,
-    stream:
-      document.getElementById("resourceLevel").value === "a-level"
-        ? document.getElementById("resourceStream")
-          ? document.getElementById("resourceStream").value
-          : null
-        : null,
-  };
-  try {
-    const url = id ? `${API_BASE}/resources/${id}` : `${API_BASE}/resources`;
-    const method = id ? "PUT" : "POST";
-    const response = await authFetch(url, {
-      method,
-      headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.message || "Failed to save resource");
-    }
-    showSuccess(id ? "Resource updated" : "Resource added");
-    closeModal();
-    loadResources();
-    loadDashboard();
-  } catch (error) {
-    showError(error.message || "Failed to save resource");
-  }
-}
-
-// helper methods for dynamic subject/stream selection in resource modal
-function updateResourceClassOptions() {
-  const level = document.getElementById("resourceLevel").value;
-  const classSelect = document.getElementById("resourceClass");
-  const classStreamGroup = document.getElementById("resourceClassStreamGroup");
-  const streamGroup = document.getElementById("resourceStreamGroup");
-
-  classSelect.innerHTML = '<option value="">Select Class</option>';
-
-  const comboGroup = document.getElementById("resourceCombinationGroup");
-  if (level === "o-level") {
-    classSelect.innerHTML += `
-            <option value="s1">S1</option>
-            <option value="s2">S2</option>
-            <option value="s3">S3</option>
-            <option value="s4">S4</option>
-        `;
-    classStreamGroup.classList.remove("d-none");
-    streamGroup.classList.add("d-none");
-    if (comboGroup) comboGroup.classList.add("d-none");
-  } else if (level === "a-level") {
-    classSelect.innerHTML += `
-            <option value="s5">S5</option>
-            <option value="s6">S6</option>
-        `;
-    classStreamGroup.classList.add("d-none");
-    streamGroup.classList.remove("d-none");
-    // do not show combination until a stream has been selected
-    if (comboGroup) comboGroup.classList.add("d-none");
-  } else {
-    classStreamGroup.classList.add("d-none");
-    streamGroup.classList.add("d-none");
-    if (comboGroup) comboGroup.classList.add("d-none");
-  }
-}
-
-async function updateResourceClassStreams() {
-  const classVal = document.getElementById("resourceClass").value;
-  const streamSelect = document.getElementById("resourceClassStream");
-  if (!classVal || document.getElementById("resourceLevel").value !== "o-level")
-    return;
-
-  streamSelect.innerHTML = '<option value="">Loading...</option>';
-  try {
-    const res = await fetch(`/api/streams?class=${classVal}`);
-    const data = await res.json();
-    const streams = data.data || [];
-    streamSelect.innerHTML = '<option value="">All Streams</option>';
-    streams.forEach((s) => {
-      streamSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`;
-    });
-  } catch (err) {
-    streamSelect.innerHTML = '<option value="">Error</option>';
-  }
-}
-
-async function updateResourceSubjects() {
-  const level = document.getElementById("resourceLevel").value;
-  const classLevel = document.getElementById("resourceClass").value;
-  const subjectSelect = document.getElementById("resourceSubject");
-  if (!subjectSelect) return;
-
-  const previous = subjectSelect.value;
-  subjectSelect.innerHTML = '<option value="">Loading...</option>';
-  try {
-    const params = new URLSearchParams();
-    if (level) params.append("level", level);
-    if (classLevel) params.append("class", classLevel);
-    if (level === "a-level") {
-      const streamVal = document.getElementById("resourceStream")?.value;
-      if (streamVal) params.append("stream", streamVal);
-    }
-    const res = await fetch(`${API_BASE}/subjects?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    if (!res.ok) throw new Error("Failed to load subjects");
-    const data = await res.json();
-    const subjects = data.data || [];
-    if (subjects.length === 0) {
-      subjectSelect.innerHTML =
-        '<option value="">No subjects found for this class</option>';
-    } else {
-      subjectSelect.innerHTML =
-        '<option value="">Select Subject</option>' +
-        subjects
-          .map((s) => `<option value="${s.name}">${s.name}</option>`)
-          .join("");
-      if (previous) subjectSelect.value = previous;
-    }
-  } catch (err) {
-    console.error("Error loading subjects:", err);
-    subjectSelect.innerHTML =
-      '<option value="">Error loading subjects</option>';
-  }
-}
-
-async function deleteResource(id) {
-  if (!confirm("Delete this resource?")) return;
-  try {
-    const response = await authFetch(`${API_BASE}/resources/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error("Failed to delete");
-    showSuccess("Resource deleted");
-    loadResources();
-    loadDashboard();
-  } catch (error) {
-    showError("Failed to delete resource");
-  }
-}
-
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
 
 function getAuthHeaders() {
   return {
-    Authorization: `Bearer ${getToken()}`,
+    Authorization: `Bearer ${localStorage.getItem("token")}`,
     "Content-Type": "application/json",
   };
 }
@@ -2270,134 +1155,6 @@ function showModal(title, content, onOpen) {
   modal.addEventListener("click", (e) => {
     if (e.target === modal) closeModal();
   });
-}
-
-// ============================================
-// STREAMS MANAGEMENT (O-Level)
-// ============================================
-
-function renderStreamsTab() {
-  return `
-        <div id="streams" class="tab-content">
-            <div class="section-header">
-                <h2>Class Streams (O-Level)</h2>
-                <div class="header-actions">
-                    <input type="text" id="newStreamName" placeholder="Stream Name (e.g. S1 A)">
-                    <select id="newStreamClass">
-                        <option value="s1">S1</option>
-                        <option value="s2">S2</option>
-                        <option value="s3">S3</option>
-                        <option value="s4">S4</option>
-                    </select>
-                    <button class="btn-primary" id="addStreamBtn">Add Stream</button>
-                </div>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Stream Name</th>
-                            <th>Class</th>
-                            <th>Created</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="streamsTableBody">
-                        <tr><td colspan="4" class="loading">Loading streams...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-}
-
-function setupStreamsListeners() {
-  const addBtn = document.getElementById("addStreamBtn");
-  if (addBtn) {
-    addBtn.addEventListener("click", addStream);
-  }
-
-  // Global event delegation
-  document.addEventListener("click", (e) => {
-    if (e.target.classList.contains("delete-stream-btn")) {
-      deleteStream(e.target.getAttribute("data-stream-id"));
-    }
-  });
-}
-
-async function loadStreams() {
-  try {
-    const res = await authFetch(`${API_BASE}/streams`, {
-      headers: getAuthHeaders(),
-    });
-    const data = await res.json();
-    const streams = data.data || [];
-    const tbody = document.getElementById("streamsTableBody");
-
-    if (streams.length === 0) {
-      tbody.innerHTML =
-        '<tr><td colspan="4" class="no-data">No streams found</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = streams
-      .map(
-        (s) => `
-        <tr>
-            <td><strong>${s.name}</strong></td>
-            <td>${s.class.toUpperCase()}</td>
-            <td>${new Date(s.createdAt).toLocaleDateString()}</td>
-            <td>
-                <button class="btn-sm btn-danger delete-stream-btn" data-stream-id="${s.id}">Delete</button>
-            </td>
-        </tr>
-    `,
-      )
-      .join("");
-  } catch (err) {
-    showError("Failed to load streams");
-  }
-}
-
-async function addStream() {
-  const name = document.getElementById("newStreamName").value.trim();
-  const classVal = document.getElementById("newStreamClass").value;
-
-  if (!name) return showError("Stream name is required");
-
-  try {
-    const res = await authFetch(`${API_BASE}/streams`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ name, class: classVal }),
-    });
-
-    if (!res.ok) throw new Error("Failed to add stream");
-
-    showSuccess("Stream added");
-    document.getElementById("newStreamName").value = "";
-    loadStreams();
-  } catch (err) {
-    showError(err.message);
-  }
-}
-
-async function deleteStream(id) {
-  if (!confirm("Delete this stream?")) return;
-
-  try {
-    const res = await authFetch(`${API_BASE}/streams/${id}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-    });
-
-    if (!res.ok) throw new Error("Failed to delete stream");
-
-    showSuccess("Stream deleted");
-    loadStreams();
-  } catch (err) {
-    showError("Failed to delete stream");
-  }
 }
 
 function closeModal() {
