@@ -86,26 +86,23 @@ async function handleLogin(event) {
       localStorage.setItem("user", JSON.stringify(data.data.user));
     }
 
-    // Redirect based on role and verify role matches
-    const userRole = data.data.user.role;
-    const currentPath = window.location.pathname;
+    // Verify user is accessing the correct login portal
+    const params = new URLSearchParams(window.location.search);
+    const portalRole = params.get("role");
 
-    // Security: Verify user is accessing the correct dashboard
+    if (portalRole && userRole !== portalRole) {
+      removeToken();
+      const portalName = portalRole === "admin" ? "Admin" : "Student";
+      const userType = userRole === "admin" ? "Admin" : "Student";
+      throw new Error(
+        `Access denied: ${userType} accounts cannot login via the ${portalName} portal.`,
+      );
+    }
+
+    // Redirect based on role
     if (userRole === "admin") {
-      if (currentPath.includes("student-dashboard")) {
-        alert("Access denied. Admin accounts cannot access student dashboard.");
-        removeToken();
-        window.location.href = "/pages/login.html";
-        return;
-      }
       window.location.href = "/pages/admin-dashboard.html";
     } else if (userRole === "student") {
-      if (currentPath.includes("admin-dashboard")) {
-        alert("Access denied. Student accounts cannot access admin dashboard.");
-        removeToken();
-        window.location.href = "/pages/login.html";
-        return;
-      }
       window.location.href = "/pages/student-dashboard.html";
     } else {
       // Unknown role

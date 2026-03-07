@@ -47,11 +47,7 @@ async function checkAuth() {
 
     // Strict role check: Only admins can access admin dashboard
     if (data.data.role !== "admin") {
-      removeToken();
-      window.location.href = "/pages/login.html";
-      alert(
-        "Access denied. This is an admin-only area. Student accounts cannot access this dashboard.",
-      );
+      window.location.href = "/pages/student-dashboard.html";
       return;
     }
 
@@ -1359,8 +1355,8 @@ function showQuizModal(title, quiz) {
                 <input type="file" id="quizFile" accept=".pdf,.doc,.docx,.txt">
             </div>
             <div class="form-group" id="contentInputGroup" style="${quiz && quiz.type === "plain" ? "display:block" : "display:none"}">
-                <label>Quiz Content *</label>
-                <textarea id="quizContent" rows="10">${quiz ? quiz.content || "" : ""}</textarea>
+                <label>Type your Question/Content here *</label>
+                <textarea id="quizContent" rows="10" placeholder="Type or paste your quiz questions/content here...">${quiz ? quiz.content || "" : ""}</textarea>
             </div>
             <div class="form-group">
                 <label>Level *</label>

@@ -158,13 +158,24 @@
     <script>
       let allNotes = [];
       let allQuizzes = [];
+      let allResources = [];
       let currentSubjectNotes = null;
       let currentSubjectQuizzes = null;
+      let currentSubjectResources = null;
 
       document.addEventListener("DOMContentLoaded", async () => {
         const user = await getCurrentUser();
-        if (!user || user.role !== "student") {
-          // Not a student or not logged in
+        if (!user) {
+          logout();
+          return;
+        }
+
+        if (user.role === "admin") {
+          window.location.href = "/pages/admin-dashboard.html";
+          return;
+        }
+
+        if (user.role !== "student") {
           logout();
           return;
         }
@@ -350,6 +361,7 @@
                   <span>Uploaded: ${formatDate(note.createdAt)}</span>
                 </div>
                 <div class="note-actions">
+                  <button class="btn-sm btn-success" onclick="viewNote('${note.id}')">View</button>
                   <button class="btn-sm btn-primary download-note-btn" data-note-id="${note.id}" data-note-title="${note.title.replace(/"/g, "&quot;")}">Download</button>
                 </div>
               </article>
@@ -483,6 +495,9 @@
         } else if (type === "quizzes") {
           currentSubjectQuizzes = subject;
           renderQuizzes(allQuizzes);
+        } else if (type === "resources") {
+          currentSubjectResources = subject;
+          renderResources(allResources);
         }
       }
 
@@ -493,6 +508,9 @@
         } else if (type === "quizzes") {
           currentSubjectQuizzes = null;
           renderQuizzes(allQuizzes);
+        } else if (type === "resources") {
+          currentSubjectResources = null;
+          renderResources(allResources);
         }
       }
 
@@ -507,36 +525,72 @@
             },
           );
           const data = await res.json();
-          const resources = data.data || [];
+          allResources = data.data || [];
           document.getElementById("resourcesCount").textContent =
-            resources.length;
-          renderResources(resources);
+            allResources.length;
+          renderResources(allResources);
         } catch (err) {}
       }
 
       function renderResources(resources) {
         const container = document.getElementById("resourcesContainer");
+        if (!container) return;
+
         if (!resources.length) {
           container.innerHTML =
             '<div class="no-data">No extra resources for your class yet.</div>';
           return;
         }
-        container.innerHTML = resources
-          .map(
-            (res) => `
-          <article class="note-card">
-            <div class="note-header">
-              <h3>${res.title}</h3>
-              <span class="note-badge">${res.subject || "General"}</span>
-            </div>
-            <p class="note-description">${res.description || ""}</p>
-            <div class="note-actions">
-              <a href="${res.url}" target="_blank" class="btn-sm btn-primary" style="text-decoration:none">Open Resource</a>
-            </div>
-          </article>
-        `,
-          )
-          .join("");
+
+        if (currentSubjectResources) {
+          const filtered = resources.filter(
+            (r) => r.subject === currentSubjectResources,
+          );
+          container.innerHTML = `
+          <div class="subject-header">
+            <button class="btn-sm btn-secondary" onclick="clearSubjectFilter('resources')">← Back to Subjects</button>
+            <h3>Subject: ${currentSubjectResources}</h3>
+          </div>
+          <div class="notes-grid">
+            ${filtered
+              .map(
+                (res) => `
+              <article class="note-card">
+                <div class="note-header">
+                  <h3>${res.title}</h3>
+                  <span class="note-badge">${res.subject || "General"}</span>
+                </div>
+                <p class="note-description">${res.description || ""}</p>
+                <div class="note-actions">
+                  <a href="${res.url}" target="_blank" class="btn-sm btn-primary" style="text-decoration:none">Open Resource</a>
+                </div>
+              </article>
+            `,
+              )
+              .join("")}
+          </div>
+        `;
+        } else {
+          const subjects = [...new Set(resources.map((r) => r.subject))];
+          container.innerHTML = `
+          <div class="subject-tile-grid">
+            ${subjects
+              .map((subject) => {
+                const count = resources.filter(
+                  (r) => r.subject === subject,
+                ).length;
+                return `
+                <div class="subject-tile" onclick="setSubjectFilter('resources', '${subject}')">
+                  <div class="tile-icon">🔗</div>
+                  <h4>${subject || "General"}</h4>
+                  <p>${count} items</p>
+                </div>
+              `;
+              })
+              .join("")}
+          </div>
+        `;
+        }
       }
 
       async function downloadQuiz(id, title) {
@@ -560,11 +614,52 @@
           const res = await fetch(`${API_BASE}/quizzes/${id}/view`, {
             headers: { Authorization: `Bearer ${getToken()}` },
           });
+
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const json = await res.json();
+            // It's a plain text quiz
+            showQuizContentModal(json.data.title, json.data.content);
+          } else {
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, "_blank");
+          }
+        } catch (err) {
+          alert("Could not open quiz");
+        }
+      }
+
+      function showQuizContentModal(title, content) {
+        // Create a simple overlay
+        const overlay = document.createElement("div");
+        overlay.style =
+          "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;";
+        overlay.innerHTML = `
+        <div style="background:white;padding:30px;border-radius:10px;max-width:800px;width:100%;max-height:90vh;overflow-y:auto;position:relative;">
+          <button onclick="this.parentElement.parentElement.remove()" style="position:absolute;top:10px;right:10px;border:none;background:none;font-size:24px;cursor:pointer;">&times;</button>
+          <h2>${title}</h2>
+          <hr/>
+          <div style="white-space:pre-wrap;margin-top:20px;font-size:18px;line-height:1.6;">${content}</div>
+          <div style="margin-top:30px;text-align:right;">
+            <button onclick="this.parentElement.parentElement.parentElement.remove()" class="btn-primary">Close</button>
+          </div>
+        </div>
+      `;
+        document.body.appendChild(overlay);
+      }
+
+      async function viewNote(id) {
+        try {
+          const res = await fetch(`${API_BASE}/notes/${id}/view`, {
+            headers: { Authorization: `Bearer ${getToken()}` },
+          });
+          if (!res.ok) throw new Error("Could not view note");
           const blob = await res.blob();
           const url = window.URL.createObjectURL(blob);
           window.open(url, "_blank");
         } catch (err) {
-          alert("Could not open quiz");
+          alert("Failed to open note");
         }
       }
 
