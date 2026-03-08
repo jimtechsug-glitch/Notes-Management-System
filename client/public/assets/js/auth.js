@@ -86,6 +86,8 @@ async function handleLogin(event) {
       localStorage.setItem("user", JSON.stringify(data.data.user));
     }
 
+    const userRole = data.data.user.role;
+
     // Verify user is accessing the correct login portal
     const params = new URLSearchParams(window.location.search);
     const portalRole = params.get("role");

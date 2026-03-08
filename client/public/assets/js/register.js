@@ -236,9 +236,9 @@ class RegisterPage {
       grid.innerHTML = subjects
         .map(
           (s) => `
-            <div class="subject-item" data-code="${s.code}">
-                <strong>${s.code}</strong><br>
-                <small>${s.name}</small>
+            <div class="subject-item" data-id="${s.id}">
+                <strong>${s.code || s.name}</strong><br>
+                <small>${s.code ? s.name : ""}</small>
             </div>
         `,
         )
@@ -255,8 +255,8 @@ class RegisterPage {
   }
 
   toggleSubject(item) {
-    const code = item.getAttribute("data-code");
-    const index = this.formData.selectedSubjects.indexOf(code);
+    const id = item.getAttribute("data-id");
+    const index = this.formData.selectedSubjects.indexOf(id);
 
     if (index > -1) {
       // De-select
@@ -265,7 +265,7 @@ class RegisterPage {
     } else {
       // Select if not at limit
       if (this.formData.selectedSubjects.length < 3) {
-        this.formData.selectedSubjects.push(code);
+        this.formData.selectedSubjects.push(id);
         item.classList.add("selected");
       }
     }
@@ -281,8 +281,8 @@ class RegisterPage {
     // Disable unselected items if at 3
     const gridItems = document.querySelectorAll(".subject-item");
     gridItems.forEach((item) => {
-      const code = item.getAttribute("data-code");
-      if (count >= 3 && !this.formData.selectedSubjects.includes(code)) {
+      const id = item.getAttribute("data-id");
+      if (count >= 3 && !this.formData.selectedSubjects.includes(id)) {
         item.classList.add("disabled");
       } else {
         item.classList.remove("disabled");

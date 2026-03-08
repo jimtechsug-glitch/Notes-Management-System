@@ -93,6 +93,24 @@ const User = sequelize.define(
           user.password = await bcrypt.hash(user.password, salt);
         }
       },
+      beforeSave: async (user) => {
+        // Handle combination generation if A-Level subjects are selected
+        if (user.selectedSubjects && user.changed("selectedSubjects")) {
+          const Subject = sequelize.models.Subject;
+          const subjects = await Subject.findAll({
+            where: { id: user.selectedSubjects },
+          });
+
+          if (subjects.length > 0) {
+            // Sort by name or code to keep combinations consistent
+            const combination = subjects
+              .map((s) => s.code || s.name)
+              .sort()
+              .join("-");
+            user.combination = combination.toUpperCase();
+          }
+        }
+      },
     },
   },
 );

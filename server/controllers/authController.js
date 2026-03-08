@@ -11,6 +11,8 @@ exports.register = async (req, res, next) => {
       class: classLevel,
       level,
       combination,
+      stream,
+      selectedSubjects,
     } = req.body;
 
     const userRole = "student"; // Force student role for registration
@@ -26,6 +28,8 @@ exports.register = async (req, res, next) => {
       class: classLevel,
       level,
       combination,
+      stream,
+      selectedSubjects,
       isConfirmed,
     });
 

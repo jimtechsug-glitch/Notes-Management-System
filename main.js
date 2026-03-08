@@ -39,7 +39,14 @@ function createWindow() {
       contextIsolation: true,
     },
     title: "Nsoma-DigLibs",
-    icon: path.join(__dirname, "client", "public", "assets", "images", "logo.png"),
+    icon: path.join(
+      __dirname,
+      "client",
+      "public",
+      "assets",
+      "images",
+      "logo.png",
+    ),
   });
 
   mainWindow.loadURL("http://localhost:5000");

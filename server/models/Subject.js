@@ -54,6 +54,7 @@ const Subject = sequelize.define(
       {
         unique: true,
         fields: ["name", "level", "class"],
+        name: "subjects_unique_composite",
       },
     ],
   },
