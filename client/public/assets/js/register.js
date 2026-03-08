@@ -264,7 +264,7 @@ class RegisterPage {
       item.classList.remove("selected");
     } else {
       // Select if not at limit
-      if (this.formData.selectedSubjects.length < 3) {
+      if (this.formData.selectedSubjects.length < 5) {
         this.formData.selectedSubjects.push(id);
         item.classList.add("selected");
       }
@@ -276,13 +276,13 @@ class RegisterPage {
   updateSelectionUI() {
     const count = this.formData.selectedSubjects.length;
     document.getElementById("selectionCount").textContent =
-      `Selected: ${count}/3`;
+      `Selected: ${count}/5`;
 
     // Disable unselected items if at 3
     const gridItems = document.querySelectorAll(".subject-item");
     gridItems.forEach((item) => {
       const id = item.getAttribute("data-id");
-      if (count >= 3 && !this.formData.selectedSubjects.includes(id)) {
+      if (count >= 5 && !this.formData.selectedSubjects.includes(id)) {
         item.classList.add("disabled");
       } else {
         item.classList.remove("disabled");
@@ -299,8 +299,8 @@ class RegisterPage {
     const password = document.getElementById("password").value;
     const classVal = document.getElementById("class").value;
 
-    if (level === "a-level" && this.formData.selectedSubjects.length !== 3) {
-      return this.showError("Please select exactly 3 subjects.");
+    if (level === "a-level" && this.formData.selectedSubjects.length === 0) {
+      return this.showError("Please select at least one subject.");
     }
 
     const payload = {
