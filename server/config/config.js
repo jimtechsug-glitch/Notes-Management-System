@@ -29,6 +29,19 @@ const OLEVEL_SUBJECTS = [
   "CRE",
   "Agriculture",
   "Commerce",
+  "Literature in English",
+  "Fine Art",
+  "Computer Studies",
+  "French",
+  "German",
+  "Luganda",
+  "Arabic",
+  "Accounts",
+  "Home Economics",
+  "Technical Drawing",
+  "Entrepreneurship",
+  "Music",
+  "Physical Education",
 ];
 
 // Supported A-Level subject combinations

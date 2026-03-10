@@ -727,13 +727,12 @@ function displaySubjects(subjects) {
             <td>${subject.name}</td>
             <td>${subject.code || "-"}</td>
             <td>${subject.level}</td>
-            <td>${
-              subject.class
-                ? subject.class.toUpperCase()
-                : subject.classes
-                  ? subject.classes.join(", ").toUpperCase()
-                  : "-"
-            }</td>
+            <td>${subject.class
+          ? subject.class.toUpperCase()
+          : subject.classes
+            ? subject.classes.join(", ").toUpperCase()
+            : "-"
+        }</td>
             <td>${subject.isCompulsory ? "Yes" : "No"}</td>
             <td>${subject.stream || "-"}</td>
             <td>
@@ -1477,7 +1476,8 @@ function renderResourcesTab() {
                     <thead>
                         <tr>
                             <th>Title</th>
-                            <th>URL</th>
+                            <th>Type</th>
+                            <th>Link/File</th>
                             <th>Subject</th>
                             <th>Level</th>
                             <th>Class</th>
@@ -1485,7 +1485,7 @@ function renderResourcesTab() {
                         </tr>
                     </thead>
                     <tbody id="resourcesTableBody">
-                        <tr><td colspan="6" class="loading">Loading resources...</td></tr>
+                        <tr><td colspan="7" class="loading">Loading resources...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1521,7 +1521,13 @@ function displayResources(resources) {
         (res) => `
         <tr>
             <td>${res.title}</td>
-            <td><a href="${res.url}" target="_blank">View Link</a></td>
+            <td>${res.resourceType === "file" ? "📁 File/Video" : "🔗 URL"}</td>
+            <td>
+                ${res.resourceType === "file"
+            ? `<a href="${API_BASE.replace("/api", "")}/${res.filePath}" target="_blank">View File</a>`
+            : `<a href="${res.url}" target="_blank">View Link</a>`
+          }
+            </td>
             <td>${res.subject || "-"}</td>
             <td>${res.level}</td>
             <td>${res.class.toUpperCase()}</td>
@@ -1532,7 +1538,7 @@ function displayResources(resources) {
         </tr>
     `,
       )
-      .join("") || '<tr><td colspan="6" class="no-data">No resources</td></tr>';
+      .join("") || '<tr><td colspan="7" class="no-data">No resources</td></tr>';
 }
 
 function showAddResourceModal() {
@@ -1545,15 +1551,26 @@ function editResource(id) {
 
 function showResourceModal(title, resource) {
   const modalContent = `
-        <form id="resourceForm">
+        <form id="resourceForm" enctype="multipart/form-data">
             <input type="hidden" id="resourceId" value="${resource ? resource.id : ""}">
             <div class="form-group">
                 <label>Title *</label>
                 <input type="text" id="resourceTitle" value="${resource ? resource.title : ""}" required>
             </div>
             <div class="form-group">
+                <label>Type *</label>
+                <select id="resourceType" required>
+                    <option value="url" ${resource && resource.resourceType === "url" ? "selected" : ""}>Web Link (URL)</option>
+                    <option value="file" ${resource && resource.resourceType === "file" ? "selected" : ""}>File Upload (MP4, PDF, etc)</option>
+                </select>
+            </div>
+            <div class="form-group" id="resourceUrlGroup" style="${resource && resource.resourceType === "file" ? "display:none" : "display:block"}">
                 <label>URL (e.g. YouTube Link) *</label>
-                <input type="text" id="resourceUrl" value="${resource ? resource.url : ""}" required>
+                <input type="text" id="resourceUrl" value="${resource && resource.url ? resource.url : ""}" ${resource && resource.resourceType === "file" ? "" : "required"}>
+            </div>
+            <div class="form-group" id="resourceFileGroup" style="${resource && resource.resourceType === "file" ? "display:block" : "display:none"}">
+                <label>Resource File (MP4 Video, PDF, DOC) ${resource && resource.resourceType === "file" ? "(Optional update)" : "*"}</label>
+                <input type="file" id="resourceFile" accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4" ${resource ? "" : (resource && resource.resourceType === "file" ? "" : "")}>
             </div>
             <div class="form-group">
                 <label>Subject</label>
@@ -1586,6 +1603,23 @@ function showResourceModal(title, resource) {
         </form>
     `;
   showModal(title, modalContent, () => {
+    const rType = document.getElementById("resourceType");
+    const rUrl = document.getElementById("resourceUrlGroup");
+    const rFile = document.getElementById("resourceFileGroup");
+    const rUrlInput = document.getElementById("resourceUrl");
+
+    rType.addEventListener("change", () => {
+      if (rType.value === "url") {
+        rUrl.style.display = "block";
+        rFile.style.display = "none";
+        rUrlInput.required = true;
+      } else {
+        rUrl.style.display = "none";
+        rFile.style.display = "block";
+        rUrlInput.required = false;
+      }
+    });
+
     document
       .getElementById("resourceForm")
       .addEventListener("submit", saveResource);
@@ -1595,21 +1629,40 @@ function showResourceModal(title, resource) {
 async function saveResource(e) {
   e.preventDefault();
   const id = document.getElementById("resourceId").value;
-  const data = {
-    title: document.getElementById("resourceTitle").value,
-    url: document.getElementById("resourceUrl").value,
-    subject: document.getElementById("resourceSubject").value,
-    level: document.getElementById("resourceLevel").value,
-    class: document.getElementById("resourceClass").value,
-  };
+
+  const formData = new FormData();
+  formData.append("title", document.getElementById("resourceTitle").value);
+  formData.append("resourceType", document.getElementById("resourceType").value);
+
+  if (document.getElementById("resourceType").value === "url") {
+    formData.append("url", document.getElementById("resourceUrl").value);
+  } else {
+    const fileItem = document.getElementById("resourceFile").files[0];
+    if (fileItem) formData.append("file", fileItem);
+  }
+
+  formData.append("subject", document.getElementById("resourceSubject").value);
+  formData.append("level", document.getElementById("resourceLevel").value);
+  formData.append("class", document.getElementById("resourceClass").value);
+
   try {
     const url = id ? `${API_BASE}/resources/${id}` : `${API_BASE}/resources`;
     const res = await fetch(url, {
       method: id ? "PUT" : "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(data),
+      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      body: formData,
     });
-    if (!res.ok) throw new Error("Save resource failed");
+
+    // Parse response
+    let resData;
+    try {
+      resData = await res.json();
+    } catch (err) {
+      resData = null;
+    }
+
+    if (!res.ok) throw new Error(resData ? resData.message : "Save resource failed");
+    showSuccess("Resource saved successfully");
     closeModal();
     loadResources();
     loadDashboard();
@@ -1805,14 +1858,14 @@ function getSubjectOptions(selectedSubject = "") {
   return `
         <option value="">Select Subject</option>
         ${allSubjects
-          .map(
-            (s) => `
+      .map(
+        (s) => `
             <option value="${s.name}" ${s.name === selectedSubject ? "selected" : ""}>
                 ${s.name} (${s.code})
             </option>
         `,
-          )
-          .join("")}
+      )
+      .join("")}
     `;
 }
 
