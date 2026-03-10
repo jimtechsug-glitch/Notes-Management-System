@@ -39,8 +39,14 @@ async function checkAuth() {
       },
     });
 
+    if (response.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/pages/login.html";
+      return;
+    }
+
     if (!response.ok) {
-      throw new Error("Not authenticated");
+      throw new Error(`Auth failed with status: ${response.status}`);
     }
 
     const data = await response.json();
@@ -55,8 +61,8 @@ async function checkAuth() {
     renderApp();
   } catch (error) {
     console.error("Auth check failed:", error);
-    localStorage.removeItem("token");
-    window.location.href = "/pages/login.html";
+    // Don't remove token on network errors
+    // Optionally show a non-intrusive error message
   }
 }
 

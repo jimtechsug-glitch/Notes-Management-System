@@ -8,7 +8,7 @@ require("dotenv").config();
 // JWT configuration
 const JWT_CONFIG = {
   SECRET: process.env.JWT_SECRET || "change-this-secret-in-env",
-  EXPIRE: process.env.JWT_EXPIRE || "7d", // e.g. '1d', '7d'
+  EXPIRE: process.env.JWT_EXPIRE || "365d", // e.g. '1d', '365d'
 };
 
 // Valid classes for O-Level and A-Level

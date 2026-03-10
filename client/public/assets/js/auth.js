@@ -198,8 +198,12 @@ function checkAuthAndRedirect() {
     },
   })
     .then((response) => {
-      if (!response.ok) {
+      if (response.status === 401) {
         removeToken();
+        return false;
+      }
+      if (!response.ok) {
+        // Other errors (500, etc) shouldn't logout the user immediately
         return false;
       }
       return response.json();
@@ -222,7 +226,7 @@ function checkAuthAndRedirect() {
     })
     .catch((error) => {
       console.error("Auth check failed:", error);
-      removeToken();
+      // Don't remove token on network errors/glitches
     });
 
   return true;
@@ -248,8 +252,12 @@ async function getCurrentUser() {
       },
     });
 
-    if (!response.ok) {
+    if (response.status === 401) {
       removeToken();
+      return null;
+    }
+
+    if (!response.ok) {
       return null;
     }
 
@@ -257,7 +265,7 @@ async function getCurrentUser() {
     return data.data;
   } catch (error) {
     console.error("Failed to get user:", error);
-    removeToken();
+    // Don't remove token on network errors
     return null;
   }
 }
