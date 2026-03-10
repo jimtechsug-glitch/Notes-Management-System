@@ -136,7 +136,9 @@ exports.createResource = async (req, res, next) => {
     // Handle URL-based resources
     if (resourceType === "url" || !resourceType) {
       if (!url) {
-        return next(new ErrorResponse("URL is required for URL-based resources", 400));
+        return next(
+          new ErrorResponse("URL is required for URL-based resources", 400),
+        );
       }
       resourceData.url = url;
       resourceData.resourceType = "url";
@@ -154,7 +156,12 @@ exports.createResource = async (req, res, next) => {
       resourceData.fileSize = req.file.size;
       resourceData.fileType = req.file.mimetype;
     } else {
-      return next(new ErrorResponse("Invalid resource type. Must be 'url' or 'file'", 400));
+      return next(
+        new ErrorResponse(
+          "Invalid resource type. Must be 'url' or 'file'",
+          400,
+        ),
+      );
     }
 
     const resource = await Resource.create(resourceData);
@@ -222,7 +229,9 @@ exports.downloadResource = async (req, res, next) => {
 
     // Only allow downloading file-based resources
     if (resource.resourceType !== "file" || !resource.filePath) {
-      return next(new ErrorResponse("This resource is not available for download", 400));
+      return next(
+        new ErrorResponse("This resource is not available for download", 400),
+      );
     }
 
     // Check if file exists

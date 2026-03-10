@@ -14,7 +14,13 @@ const { upload } = require("../middleware/upload");
 router.get("/", protect, getAllResources);
 router.get("/:id", protect, getResource);
 router.get("/:id/download", protect, downloadResource);
-router.post("/", protect, authorize("admin"), upload.single("file"), createResource);
+router.post(
+  "/",
+  protect,
+  authorize("admin"),
+  upload.single("file"),
+  createResource,
+);
 router.put("/:id", protect, authorize("admin"), updateResource);
 router.delete("/:id", protect, authorize("admin"), deleteResource);
 

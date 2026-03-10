@@ -554,25 +554,28 @@
           </div>
           <div class="notes-grid">
             ${filtered
-              .map(
-                (res) => {
-                  let actionButton = '';
-                  if (res.resourceType === 'file' && res.fileType && res.fileType.startsWith('video/')) {
-                    // Display video player for MP4 files
-                    actionButton = `
+              .map((res) => {
+                let actionButton = "";
+                if (
+                  res.resourceType === "file" &&
+                  res.fileType &&
+                  res.fileType.startsWith("video/")
+                ) {
+                  // Display video player for MP4 files
+                  actionButton = `
                       <video controls style="width: 100%; max-width: 300px; margin-top: 10px;">
                         <source src="/api/resources/${res.id}/download" type="${res.fileType}">
                         Your browser does not support the video tag.
                       </video>
                     `;
-                  } else if (res.resourceType === 'file') {
-                    // Download button for other file types
-                    actionButton = `<a href="/api/resources/${res.id}/download" class="btn-sm btn-primary" style="text-decoration:none" download>Download File</a>`;
-                  } else {
-                    // Link for URL-based resources
-                    actionButton = `<a href="${res.url}" target="_blank" class="btn-sm btn-primary" style="text-decoration:none">Open Resource</a>`;
-                  }
-                  return `
+                } else if (res.resourceType === "file") {
+                  // Download button for other file types
+                  actionButton = `<a href="/api/resources/${res.id}/download" class="btn-sm btn-primary" style="text-decoration:none" download>Download File</a>`;
+                } else {
+                  // Link for URL-based resources
+                  actionButton = `<a href="${res.url}" target="_blank" class="btn-sm btn-primary" style="text-decoration:none">Open Resource</a>`;
+                }
+                return `
                   <article class="note-card">
                     <div class="note-header">
                       <h3>${res.title}</h3>
@@ -584,8 +587,7 @@
                     </div>
                   </article>
                 `;
-                },
-              )
+              })
               .join("")}
           </div>
         `;

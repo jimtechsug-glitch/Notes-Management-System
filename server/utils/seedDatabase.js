@@ -75,19 +75,19 @@ const seedALevelSubjects = async () => {
     // Subject categorization by stream
     const subjectStreamMap = {
       // Science subjects
-      "Physics": "science",
-      "Chemistry": "science",
-      "Biology": "science",
+      Physics: "science",
+      Chemistry: "science",
+      Biology: "science",
       // Both science and arts
-      "Mathematics": "both",
-      "Geography": "both",
+      Mathematics: "both",
+      Geography: "both",
       // Arts subjects
-      "History": "arts",
-      "Economics": "arts",
-      "Literature": "arts",
-      "Divinity": "arts",
-      "Arabic": "arts",
-      "Kiswahili": "arts",
+      History: "arts",
+      Economics: "arts",
+      Literature: "arts",
+      Divinity: "arts",
+      Arabic: "arts",
+      Kiswahili: "arts",
       "Religious Education": "arts",
     };
 
@@ -120,7 +120,9 @@ const seedALevelSubjects = async () => {
             isCompulsory: true,
             isActive: true,
           });
-          console.log(`Created A-Level subject: ${subject} (${classLevel}, ${stream})`);
+          console.log(
+            `Created A-Level subject: ${subject} (${classLevel}, ${stream})`,
+          );
         }
       }
     }
