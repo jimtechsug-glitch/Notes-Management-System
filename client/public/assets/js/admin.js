@@ -88,6 +88,7 @@ function renderApp() {
                     <li><a href="#" class="sidebar-link" data-tab="quizzes">❓ Quizzes</a></li>
                     <li><a href="#" class="sidebar-link" data-tab="resources">🔗 Resources</a></li>
                     <li><a href="#" class="sidebar-link" data-tab="streams">📁 Streams</a></li>
+                    <li><a href="#" class="sidebar-link" data-tab="reset-requests">🔑 Reset Requests</a></li>
                 </ul>
             </aside>
 
@@ -169,6 +170,13 @@ function setupEventListeners() {
     } else if (e.target.classList.contains("delete-stream-btn")) {
       deleteStream(e.target.getAttribute("data-stream-id"));
     }
+    // Reset password actions
+    else if (e.target.classList.contains("reset-password-btn")) {
+      resetStudentPassword(
+        e.target.getAttribute("data-student-id"),
+        e.target.getAttribute("data-student-name"),
+      );
+    }
   });
 }
 
@@ -245,6 +253,12 @@ function switchTab(tabName) {
       setTimeout(() => {
         setupStreamsListeners();
         loadStreams();
+      }, 10);
+    } else if (tabName === "reset-requests") {
+      content = renderResetRequestsTab();
+      mainContent.innerHTML = content;
+      setTimeout(() => {
+        loadResetRequests();
       }, 10);
     } else {
       console.error("Unknown tab:", tabName);
@@ -1966,5 +1980,109 @@ function closeModal() {
   const modal = document.getElementById("dynamicModal");
   if (modal) {
     modal.remove();
+  }
+}
+
+// ============================================
+// PASSWORD RESET REQUESTS
+// ============================================
+
+function renderResetRequestsTab() {
+  return `
+        <div id="reset-requests" class="tab-content">
+            <div class="section-header">
+                <h2>Password Reset Requests</h2>
+            </div>
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Requested At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resetRequestsTableBody">
+                        <tr><td colspan="4" class="loading">Loading requests...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+async function loadResetRequests() {
+  try {
+    const response = await fetch(`${API_BASE}/auth/reset-requests`, {
+      headers: getAuthHeaders(),
+    });
+
+    if (!response.ok) throw new Error("Failed to load reset requests");
+
+    const data = await response.json();
+    displayResetRequests(data.data || []);
+  } catch (error) {
+    console.error("Failed to load reset requests:", error);
+    showError("Failed to load reset requests");
+  }
+}
+
+function displayResetRequests(requests) {
+  const tbody = document.getElementById("resetRequestsTableBody");
+
+  if (!tbody) return;
+
+  if (requests.length === 0) {
+    tbody.innerHTML =
+      '<tr><td colspan="4" class="no-data">No pending reset requests found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = requests
+    .map(
+      (request) => `
+        <tr>
+            <td>${request.name}</td>
+            <td>${request.email}</td>
+            <td>${new Date(request.resetRequestedAt).toLocaleString()}</td>
+            <td>
+                <button class="btn-sm btn-success reset-password-btn" 
+                    data-student-id="${request.id}" 
+                    data-student-name="${request.name}">
+                    Reset Password
+                </button>
+            </td>
+        </tr>
+    `,
+    )
+    .join("");
+}
+
+async function resetStudentPassword(id, name) {
+  const newPassword = prompt(`Enter new password for ${name}:`, "123456");
+  if (!newPassword) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/reset-user/${id}`, {
+      method: "POST",
+      headers: {
+        ...getAuthHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ newPassword }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok)
+      throw new Error(data.message || "Failed to reset password");
+
+    showSuccess(data.message);
+    loadResetRequests();
+    loadDashboard();
+  } catch (error) {
+    console.error("Failed to reset password:", error);
+    showError(error.message || "Failed to reset password");
   }
 }

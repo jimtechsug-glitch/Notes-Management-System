@@ -24,6 +24,10 @@ document.addEventListener("DOMContentLoaded", function () {
     subtitleEl.textContent = "Access your admin account";
     const registerLink = document.getElementById("registerLink");
     if (registerLink) registerLink.style.display = "none";
+    const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+    if (forgotPasswordLink && forgotPasswordLink.parentElement) {
+      forgotPasswordLink.parentElement.style.display = "none";
+    }
   } else if (role === "student" && titleEl && subtitleEl) {
     titleEl.textContent = "Nsoma DigLibs - Student";
     subtitleEl.textContent = "Access your student account";
@@ -110,5 +114,36 @@ document.addEventListener("DOMContentLoaded", function () {
         testConnBtn.textContent = "Test";
       }
     });
+  }
+
+  // --- Forgot Password Modal ---
+  const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+  const forgotPasswordModal = document.getElementById("forgotPasswordModal");
+  const closeModal = document.getElementById("closeModal");
+  const forgotPasswordForm = document.getElementById("forgotPasswordForm");
+
+  if (forgotPasswordLink && forgotPasswordModal) {
+    forgotPasswordLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      forgotPasswordModal.style.display = "block";
+    });
+  }
+
+  if (closeModal && forgotPasswordModal) {
+    closeModal.addEventListener("click", () => {
+      forgotPasswordModal.style.display = "none";
+    });
+  }
+
+  if (forgotPasswordModal) {
+    window.addEventListener("click", (e) => {
+      if (e.target === forgotPasswordModal) {
+        forgotPasswordModal.style.display = "none";
+      }
+    });
+  }
+
+  if (forgotPasswordForm) {
+    forgotPasswordForm.addEventListener("submit", handleResetRequest);
   }
 });

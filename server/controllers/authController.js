@@ -138,3 +138,84 @@ exports.updatePassword = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Request password reset (Public)
+// @route   POST /api/auth/request-reset
+exports.requestPasswordReset = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return next(new ErrorResponse("Please provide an email", 400));
+    }
+
+    const user = await User.findOne({ where: { email } });
+
+    if (!user) {
+      // Don't reveal if user exists for security?
+      // Actually, in a LAN school system, it's probably better to be helpful.
+      return next(new ErrorResponse("User not found with that email", 404));
+    }
+
+    user.resetRequest = true;
+    user.resetRequestedAt = new Date();
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset request sent to admin",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get all password reset requests (Admin only)
+// @route   GET /api/auth/reset-requests
+exports.getResetRequests = async (req, res, next) => {
+  try {
+    const users = await User.findAll({
+      where: { resetRequest: true },
+      attributes: { exclude: ["password"] },
+      order: [["resetRequestedAt", "DESC"]],
+    });
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reset student password by Admin (Admin only)
+// @route   POST /api/auth/reset-user/:id
+exports.resetUserPassword = async (req, res, next) => {
+  try {
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      return next(new ErrorResponse("Please provide a new password", 400));
+    }
+
+    const user = await User.findByPk(req.params.id);
+
+    if (!user) {
+      return next(new ErrorResponse("User not found", 404));
+    }
+
+    user.password = newPassword;
+    user.resetRequest = false;
+    user.resetRequestedAt = null;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Password for ${user.name} has been reset successfully`,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

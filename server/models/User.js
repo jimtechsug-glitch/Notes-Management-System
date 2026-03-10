@@ -75,6 +75,14 @@ const User = sequelize.define(
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    resetRequest: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    resetRequestedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   },
   {
     tableName: "users",

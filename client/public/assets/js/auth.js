@@ -261,3 +261,70 @@ async function getCurrentUser() {
     return null;
   }
 }
+
+// Handle password reset request
+async function handleResetRequest(event) {
+  event.preventDefault();
+
+  const emailInput = document.getElementById("resetEmail");
+  const modalErrorMessage = document.getElementById("modalErrorMessage");
+  const modalSuccessMessage = document.getElementById("modalSuccessMessage");
+  const submitButton = document.getElementById("resetRequestButton");
+  const form = document.getElementById("forgotPasswordForm");
+
+  const email = emailInput.value.trim();
+
+  // Clear previous messages
+  modalErrorMessage.classList.remove("show");
+  modalErrorMessage.textContent = "";
+  modalSuccessMessage.style.display = "none";
+
+  if (!email) {
+    modalErrorMessage.textContent = "Please enter your email";
+    modalErrorMessage.classList.add("show");
+    return;
+  }
+
+  submitButton.disabled = true;
+  submitButton.textContent = "Sending...";
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/request-reset`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to send reset request");
+    }
+
+    // Success
+    modalSuccessMessage.textContent = "Your reset request has been sent to the administrator. Please check back later.";
+    modalSuccessMessage.style.display = "block";
+    form.style.display = "none";
+
+    // Optional: close modal after a few seconds
+    setTimeout(() => {
+      const modal = document.getElementById("forgotPasswordModal");
+      if (modal) modal.style.display = "none";
+      // Reset form for next time
+      form.style.display = "block";
+      form.reset();
+      modalSuccessMessage.style.display = "none";
+      submitButton.disabled = false;
+      submitButton.textContent = "Send Request";
+    }, 5000);
+
+  } catch (error) {
+    console.error("Reset request error:", error);
+    modalErrorMessage.textContent = error.message || "Something went wrong. Please try again.";
+    modalErrorMessage.classList.add("show");
+    submitButton.disabled = false;
+    submitButton.textContent = "Send Request";
+  }
+}
