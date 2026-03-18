@@ -1,118 +1,153 @@
-# Notes Management System (LAN Edition)
+# Nsoma DigLibs — Notes Management System
 
-A web-based **Notes Management System** designed for Ugandan schools (O-Level & A-Level).
-Optimized for **ICT Lab Deployment** and **Offline Access (PWA)**.
+A **serverless, offline-first Notes Management System** built for Ugandan schools following the **UNEB curriculum** (O-Level & A-Level). Runs as a native desktop app on **Windows** and a native mobile app on **Android** — no internet, no server setup required.
 
-## 📌 Features
+---
 
-- **Admins (Teachers)**: Upload, edit, and manage notes.
-- **Students**: Browse and download notes (Read-only).
-- **LAN Access**: Accessible by all computers in the lab via Wi-Fi/Ethernet.
-- **PWA Support**: Installable on Android & Windows. Works offline.
+## ✨ Features
+
+- 📚 **Notes & Resources** — Admins upload notes and resources (PDF, video, etc.) per subject and class level.
+- 📝 **Quizzes** — Teachers create quizzes; students take them directly in the app.
+- 👩‍🎓 **Student Accounts** — Students register, browse notes, and track their subjects.
+- 🔐 **Admin Panel** — Teachers/Admins manage users, subjects, streams, and content.
+- 📶 **LAN Access** — Run on a lab PC and let students connect via browser on the same network.
+- 📲 **Android App** — Native Android build via Capacitor.
+- 🖥️ **Windows App** — Native Windows executable via Electron.
+- 🗄️ **Serverless SQLite** — No external database required. Everything is stored locally in a single SQLite file.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla) + Service Worker (PWA)
-- **Backend**: Node.js + Express
-- **Database**: PostgreSQL
-- **Security**: Helmet, Rate Limiting, UUIDs for files
+| Layer    | Technology                     |
+| -------- | ------------------------------ |
+| Frontend | HTML5, Vanilla CSS, JavaScript |
+| Backend  | Node.js + Express              |
+| Database | SQLite (via Sequelize ORM)     |
+| Desktop  | Electron                       |
+| Mobile   | Capacitor (Android)            |
+| PWA      | Service Worker                 |
 
 ---
 
-## 🚀 Deployment Options
+## 🚀 Getting Started (Development)
 
-Choose the deployment method that fits your environment. **Option A (Docker)** is recommended for the easiest setup.
+### Prerequisites
 
-### Option A: The Pure Docker Way (Recommended)
+- **Node.js** v18 or higher
+- **npm**
 
-The easiest way to fire up the server is using a single Docker command.
+### Installation
 
-1. **Install Prerequisites (If needed)**:
-   On Ubuntu/Debian:
+```bash
+# 1. Clone the repository
+git clone https://github.com/D-J-Software-Engineers/Notes-Management-System.git
+cd Notes-Management-System
 
-   ```bash
-   sudo apt update && sudo apt install -y docker.io docker-compose-v2
-   ```
+# 2. Install dependencies
+npm install
 
-2. **Start the System**:
-   Open a terminal in the folder and run:
+# 3. Seed the default admin account
+npm run seed
 
-   ```bash
-   docker compose up --build -d
-   ```
+# 4. Start the development server
+npm run dev
+```
 
-   This will automatically:
-   - **Build & Link**: Set up the database and the server together.
-   - **Environment**: Use secure default settings automatically.
-   - **Auto-Seed**: Create the Admin account (**Email**: `admin@school.com`, **Password**: `Admin@123`).
+The app will be available at **[http://localhost:5000](http://localhost:5000)**.
 
-3. **Access App**:
-   Open [http://localhost:5000](http://localhost:5000) on the server.
-
----
-
-### Option B: Manual Setup (ICT Lab Edition)
-
-Use this if you prefer to run Node.js and PostgreSQL directly on your Server PC.
-
-#### 1. Prerequisites
-
-- **Node.js**: Installed on the Server PC (v20 recommended).
-- **PostgreSQL**: Installed and running on the Server PC.
-- **Network**: All computers must be connected to the same Router/Switch.
-
-#### 2. Installation
-
-1. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-2. **Configure Database**:
-   - Create a database named `notes_management`.
-   - Ensure your `.env` file matches your DB credentials (see `.env.example`).
-3. **Seed Admin Account**:
-   ```bash
-   npm run seed
-   ```
-4. **Start the System**:
-   ```bash
-   npm start
-   ```
+> **Default Admin Credentials**
+>
+> - **Email:** `admin@school.com`
+> - **Password:** `Admin@123`
 
 ---
 
-## 🌐 Connecting Students (LAN)
+## 🌐 LAN Access (School ICT Lab)
 
-Regardless of the installation method:
+To let students connect from other computers on the same network:
 
-1. **Find Server IP**:
-   - Run `hostname -I` (Linux) or `ipconfig` (Windows).
-   - Locate the IPv4 Address (e.g., `192.168.1.100`).
+1. Find your server PC's IP address:
+   ```bash
+   hostname -I   # Linux/Mac
+   ipconfig      # Windows
+   ```
+2. Students open a browser and navigate to `http://<SERVER_IP>:5000`.
 
-2. **Accessing from other PCs**:
-   - Students open a browser and go to: `http://<SERVER_IP>:5000`
+---
 
-3. **Offline Installation (PWA)**:
-   - On Chrome/Edge, click the **Install** icon in the address bar to add the system to your desktop or phone for offline use.
+## 🖥️ Windows Desktop App
+
+Run the app as a standalone Windows executable (no browser needed):
+
+```bash
+# Run in Electron during development
+npm run electron:start
+
+# Build a Windows installer / portable executable
+npm run electron:build
+```
+
+The built installer and portable `.exe` will be found in the `dist/` folder.
+
+---
+
+## 📱 Android App
+
+The Android app is built with **Capacitor**:
+
+```bash
+# Sync web assets to the Android project
+npx cap sync android
+
+# Open in Android Studio to build & run
+npx cap open android
+```
 
 ---
 
 ## 📂 Project Structure
 
-- `client/`: Frontend (HTML/CSS/JS)
-- `server/`: Backend (Node.js API)
-- `uploads/`: Stores note files (Ensure this folder is backed up!)
-- `ecosystem.config.js`: Configuration for keeping the server alive (Manual setup).
+```
+├── client/              # Frontend (HTML, CSS, JS, Service Worker)
+│   ├── public/          # Static assets served by Express
+│   └── pages/           # HTML page files
+├── server/              # Express backend
+│   ├── controllers/     # Route handlers
+│   ├── models/          # Sequelize models (SQLite)
+│   ├── routes/          # API route definitions
+│   ├── middleware/      # Auth, error handling
+│   ├── utils/           # DB seeder and helpers
+│   └── server.js        # App entry point
+├── android/             # Capacitor Android project
+├── main.js              # Electron main process
+├── database.sqlite      # Local SQLite database (auto-created)
+└── uploads/             # Uploaded notes and resources
+```
 
 ---
 
-## ⚙️ Management & Security
+## 📜 Available Scripts
 
-- **Stop System (Docker)**: `docker compose down`
-- **View Logs (Docker)**: `docker compose logs -f`
-- **Security**:
-  - Admin registration is **disabled** for public users.
-  - File uploads are validated to prevent malicious scripts.
-  - CSP and Helmet headers are enabled for production safety.
+| Command                  | Description                              |
+| ------------------------ | ---------------------------------------- |
+| `npm run dev`            | Start development server with hot-reload |
+| `npm start`              | Start production server                  |
+| `npm run seed`           | Seed the database with the admin account |
+| `npm run electron:start` | Launch the Electron desktop app          |
+| `npm run electron:build` | Build the Windows installer/portable exe |
+
+---
+
+## 🔒 Security Notes
+
+- Admin registration is **disabled** for public users. Only the seeded admin account can create other admins.
+- File uploads are validated to prevent malicious files.
+- JWT-based authentication is used for all API routes.
+- CORS is restricted to `localhost` and local network (`192.168.x.x`) addresses.
+
+---
+
+## 📄 License
+
+MIT © [D-J Software Engineers](https://github.com/D-J-Software-Engineers)
