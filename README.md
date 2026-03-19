@@ -81,7 +81,10 @@ To let students connect from other computers on the same network:
 Run the app as a standalone Windows executable (no browser needed):
 
 ```bash
+install node
+run npm install 
 # Run in Electron during development
+
 npm run electron:start
 
 # Build a Windows installer / portable executable
