@@ -3,6 +3,13 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
+// Load baked-in keys from config/keys.js
+const bakedKeys = require("./server/config/keys");
+if (bakedKeys.OPENAI_API_KEY)
+  process.env.OPENAI_API_KEY = bakedKeys.OPENAI_API_KEY;
+if (bakedKeys.GEMINI_API_KEY)
+  process.env.GEMINI_API_KEY = bakedKeys.GEMINI_API_KEY;
+
 // Set up paths for production (all-users shared DB on Windows)
 const isDev = !app.isPackaged;
 const programDataRoot =

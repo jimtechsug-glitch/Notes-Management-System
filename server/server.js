@@ -16,6 +16,8 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const { errorHandler } = require("./middleware/errorHandler");
 const { serviceWindowMiddleware } = require("./middleware/serviceCheck");
 const seedDatabase = require("./utils/seedDatabase");
+const discussionRoutes = require("./routes/discussionRoutes");
+const searchroomRoutes = require("./routes/searchroomRoutes");
 
 // ... imports
 const fs = require("fs");
@@ -159,6 +161,8 @@ app.use("/api/subjects", subjectRoutes);
 app.use("/api/quizzes", quizRoutes);
 app.use("/api/streams", streamRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/discussions", discussionRoutes);
+app.use("/api/searchroom", searchroomRoutes);
 
 // Serve frontend
 app.get("/", (req, res) => {

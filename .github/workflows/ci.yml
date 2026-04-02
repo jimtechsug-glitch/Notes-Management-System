@@ -147,6 +147,8 @@ jobs:
         run: npm test
         env:
           NODE_ENV: test
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       # 14. Upload coverage reports (optional)
       - name: Upload test coverage
@@ -156,3 +158,26 @@ jobs:
           name: coverage-report
           path: coverage
           if-no-files-found: ignore
+
+  ai-verification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run AI Fallback Tests
+        run: npm run test:ai
+        env:
+          NODE_ENV: test
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Note: No real API keys needed due to mocks, but good practice
