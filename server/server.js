@@ -83,7 +83,10 @@ app.use(
     },
   }),
 );
-app.use("/pages", express.static(path.join(__dirname, "../client/public/pages")));
+app.use(
+  "/pages",
+  express.static(path.join(__dirname, "../client/public/pages")),
+);
 
 // Uploads path: prefer APP-defined path, else project folder.
 // If that is not writable, fall back to per-user local path, then temp path.
